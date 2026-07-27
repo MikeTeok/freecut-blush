@@ -71,6 +71,7 @@
       "detectingSilence": "Erkennen Stille",
       "dissolveCompoundClip": "Auflosen zusammengesetzt Clip",
       "extractEmbeddedSubtitles": "Extrahieren eingebettet Untertitel",
+      "importSubtitleFile": "Untertiteldatei importieren",
       "generateAudioFromText": "Generieren Audio aus Text",
       "generateCaptions": "Generieren Untertitel",
       "insertFreezeFrame": "Einfugen Standbild Frame",

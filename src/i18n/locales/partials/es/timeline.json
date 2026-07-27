@@ -71,6 +71,7 @@
       "detectingSilence": "Detectando silencio",
       "dissolveCompoundClip": "Disolver compuesto clip",
       "extractEmbeddedSubtitles": "Extraer incrustados subtitulos",
+      "importSubtitleFile": "Importar archivo de subtítulos",
       "generateAudioFromText": "Generar Audio desde Texto",
       "generateCaptions": "Generar Subtitulos",
       "insertFreezeFrame": "Insertar congelado fotograma",

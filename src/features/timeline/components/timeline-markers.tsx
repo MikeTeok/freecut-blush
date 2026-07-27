@@ -854,49 +854,14 @@ export const TimelineMarkers = memo(function TimelineMarkers({
   const handleRulerMouseMove = useCallback(
     (e: React.MouseEvent) => {
       if (isDragging || isRangeDragging) return
-      // The ruler owns this hover. Prevent TimelineContent's bubbling handler
-      // from scheduling a second publication for the same pointer sample.
       e.stopPropagation()
-
-      const frame = getFrameFromClientX(e.clientX)
-      pendingHoverPreviewFrameRef.current = frame
-      if (hoverPreviewRafRef.current !== null) return
-      hoverPreviewRafRef.current = requestAnimationFrame(() => {
-        hoverPreviewRafRef.current = null
-        const nextFrame = pendingHoverPreviewFrameRef.current
-        pendingHoverPreviewFrameRef.current = null
-        if (nextFrame !== null) {
-          setPreviewFrameRef.current(nextFrame)
-        }
-      })
     },
-    [getFrameFromClientX, isDragging, isRangeDragging],
+    [isDragging, isRangeDragging],
   )
 
   const handleRulerMouseLeave = useCallback(
-    (e: React.MouseEvent<HTMLDivElement>) => {
+    () => {
       if (isDragging || isRangeDragging) return
-
-      const timelineContainer = e.currentTarget.closest('[data-timeline-scroll-container]')
-      if (e.relatedTarget instanceof Node && timelineContainer?.contains(e.relatedTarget)) {
-        if (hoverPreviewRafRef.current !== null) {
-          cancelAnimationFrame(hoverPreviewRafRef.current)
-          hoverPreviewRafRef.current = null
-        }
-        pendingHoverPreviewFrameRef.current = null
-        // The parent timeline owns skimming across both its ruler and tracks.
-        // Crossing that internal boundary is not a skim release: clearing here
-        // briefly retargets the committed frame and cancels compound-frame work
-        // before the parent publishes the next hovered frame.
-        return
-      }
-
-      if (hoverPreviewRafRef.current !== null) {
-        cancelAnimationFrame(hoverPreviewRafRef.current)
-        hoverPreviewRafRef.current = null
-      }
-      pendingHoverPreviewFrameRef.current = null
-      setPreviewFrameRef.current(null)
     },
     [isDragging, isRangeDragging],
   )

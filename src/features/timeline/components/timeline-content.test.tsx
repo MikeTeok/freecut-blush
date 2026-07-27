@@ -754,16 +754,9 @@ describe('TimelineContent playback selection behavior', () => {
     })
     expect(usePlaybackStore.getState().previewFrame).not.toBe(24)
 
-    const releaseFrame = usePlaybackStore.getState().previewFrame
     frameCallbacks.length = 0
     fireEvent.mouseMove(track!, { clientX: 220, clientY: 100 })
-    expect(frameCallbacks.length).toBeGreaterThan(0)
-
-    act(() => {
-      frameCallbacks.splice(0).forEach((callback) => callback(performance.now()))
-    })
-
-    expect(usePlaybackStore.getState().previewFrame).not.toBe(releaseFrame)
+    expect(frameCallbacks.length).toBe(0)
     animationFrameSpy.mockRestore()
   })
 })

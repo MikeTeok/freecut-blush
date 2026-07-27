@@ -1,11 +1,20 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import type { TimelineItem as TimelineItemType } from '@/types/timeline'
+import type { AudioItem, TimelineItem as TimelineItemType, VideoItem } from '@/types/timeline'
 import { useTimelineStore } from '../../stores/timeline-store'
 import { useMediaLibraryStore } from '@/features/timeline/deps/media-library-store'
 import {
   importMediaLibraryService,
   useEmbeddedSubtitlePickerStore,
 } from '@/features/timeline/deps/media-library-service'
+import { useProjectStore } from '@/features/timeline/deps/projects'
+import { DEFAULT_PROJECT_HEIGHT, DEFAULT_PROJECT_WIDTH } from '@/shared/projects/defaults'
+import { useSelectionStore } from '@/shared/state/selection/store'
+import { inferSubtitleFormat, parseSrt, parseVtt } from '@/shared/utils/subtitles'
+import {
+  buildCaptionTrackAbove,
+  buildSubtitleTextItemsForClip,
+  findCompatibleCaptionTrackForRanges,
+} from '@/features/timeline/deps/caption-items'
 
 function isEmbeddedSubtitleContainer(fileName: string, mimeType: string): boolean {
   const name = fileName.toLowerCase()
@@ -51,6 +60,8 @@ export interface CaptionDialogState {
   markCaptionStopRequested: () => void
   handleExtractEmbeddedSubtitles: (() => Promise<void>) | undefined
   handleConsolidateCaptionsToSegment: (() => Promise<void>) | undefined
+  canImportSubtitleFile: boolean
+  handleImportSubtitleFile: (() => Promise<void>) | undefined
 }
 
 export function useCaptionDialogState({
@@ -197,6 +208,104 @@ export function useCaptionDialogState({
     }
   }, [item.id])
 
+  const handleImportSubtitleFile = useCallback(async () => {
+    if (item.type !== 'video' && item.type !== 'audio') return
+    const mediaStore = useMediaLibraryStore.getState()
+
+    const input = document.createElement('input')
+    input.type = 'file'
+    input.accept = '.srt,.vtt'
+
+    const file = await new Promise<File | null>((resolve) => {
+      input.onchange = () => resolve(input.files?.[0] ?? null)
+      input.click()
+    })
+    if (!file) return
+
+    try {
+      const text = await file.text()
+      const format = inferSubtitleFormat(file.name)
+      if (!format) {
+        mediaStore.showNotification?.({
+          type: 'error',
+          message: `Unsupported subtitle format: "${file.name}". Please use .srt or .vtt files.`,
+        })
+        return
+      }
+
+      const result = format === 'srt' ? parseSrt(text) : parseVtt(text)
+      if (result.cues.length === 0) {
+        mediaStore.showNotification?.({
+          type: 'error',
+          message: `No subtitles found in "${file.name}".`,
+        })
+        return
+      }
+
+      const timeline = useTimelineStore.getState()
+      const project = useProjectStore.getState().currentProject
+      const canvasWidth = project?.metadata.width ?? DEFAULT_PROJECT_WIDTH
+      const canvasHeight = project?.metadata.height ?? DEFAULT_PROJECT_HEIGHT
+      const newTracks = [...timeline.tracks]
+      const clip = item as AudioItem | VideoItem
+
+      const range = {
+        startFrame: clip.from,
+        endFrame: clip.from + clip.durationInFrames,
+      }
+      let targetTrack = findCompatibleCaptionTrackForRanges(newTracks, timeline.items, [range])
+      if (!targetTrack) {
+        const clipTrack = newTracks.find((t) => t.id === clip.trackId)
+        targetTrack = clipTrack
+          ? buildCaptionTrackAbove(newTracks, clipTrack.order)
+          : buildCaptionTrackAbove(newTracks, 0)
+        newTracks.push(targetTrack)
+        newTracks.sort((a, b) => a.order - b.order)
+      }
+
+      const textItems = buildSubtitleTextItemsForClip({
+        trackId: targetTrack.id,
+        cues: result.cues,
+        clip,
+        timelineFps: timeline.fps,
+        canvasWidth,
+        canvasHeight,
+        fileName: file.name,
+        format,
+        sourceType: 'subtitle-import',
+      })
+
+      if (textItems.length === 0) {
+        mediaStore.showNotification?.({
+          type: 'error',
+          message: `No subtitles from "${file.name}" overlap the clip's source range.`,
+        })
+        return
+      }
+
+      const tracksChanged =
+        newTracks.length !== timeline.tracks.length ||
+        newTracks.some((t, i) => t.id !== timeline.tracks[i]?.id)
+      if (tracksChanged) {
+        timeline.setTracks(newTracks)
+      }
+
+      timeline.addItems(textItems)
+      useSelectionStore.getState().selectItems(textItems.map((i) => i.id))
+
+      mediaStore.showNotification?.({
+        type: 'success',
+        message: `Imported ${textItems.length} subtitle${textItems.length === 1 ? '' : 's'} from "${file.name}".`,
+      })
+    } catch (error) {
+      mediaStore.showNotification?.({
+        type: 'error',
+        message:
+          error instanceof Error ? error.message : `Failed to import "${file.name}".`,
+      })
+    }
+  }, [item])
+
   const openDialog = useCallback(() => {
     captionStopRequestedRef.current = false
     setDialogError(null)
@@ -215,6 +324,8 @@ export function useCaptionDialogState({
   const markCaptionStopRequested = useCallback(() => {
     captionStopRequestedRef.current = true
   }, [])
+
+  const canImportSubtitleFile = item.type === 'video' || item.type === 'audio'
 
   return {
     canManageCaptions,
@@ -238,5 +349,7 @@ export function useCaptionDialogState({
     handleConsolidateCaptionsToSegment: hasConsolidatablePerCueCaptions
       ? handleConsolidateCaptionsToSegment
       : undefined,
+    canImportSubtitleFile,
+    handleImportSubtitleFile: canImportSubtitleFile ? handleImportSubtitleFile : undefined,
   }
 }

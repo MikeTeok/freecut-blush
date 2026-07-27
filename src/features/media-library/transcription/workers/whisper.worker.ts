@@ -297,11 +297,12 @@ async function transcribeChunk(chunk: PCMChunk): Promise<void> {
 
   const result = await asrPipeline(chunk.samples, {
     sampling_rate: 16_000,
-    return_timestamps: 'word',
+    return_timestamps: true,
     chunk_length_s: WHISPER_CHUNK_SECONDS,
     stride_length_s: WHISPER_STRIDE_SECONDS,
     batch_size: activeDevice === 'webgpu' ? getWhisperWebGpuBatchSize(currentModelId ?? '') : 1,
     force_full_sequences: false,
+    condition_on_previous_text: true,
     top_k: 0,
     do_sample: false,
     task: WHISPER_TASK,

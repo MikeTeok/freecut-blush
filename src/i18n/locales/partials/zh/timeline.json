@@ -71,6 +71,7 @@
       "detectingSilence": "正在检测静音",
       "dissolveCompoundClip": "解散复合剪辑",
       "extractEmbeddedSubtitles": "提取内嵌字幕",
+      "importSubtitleFile": "导入字幕文件",
       "generateAudioFromText": "从文本生成音频",
       "generateCaptions": "生成字幕",
       "insertFreezeFrame": "插入冻结帧",

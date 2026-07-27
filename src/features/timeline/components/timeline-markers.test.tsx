@@ -1,4 +1,4 @@
-import { act, fireEvent, render, waitFor } from '@testing-library/react'
+import { fireEvent, render, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vite-plus/test'
 
 import { usePlaybackStore } from '@/shared/state/playback'
@@ -125,7 +125,7 @@ describe('TimelineMarkers ruler scrub cancellation', () => {
     expect(playhead).toHaveStyle({ transform: 'translate3d(23px, 0, 0)' })
   })
 
-  it('keeps the skim target while moving from the ruler into timeline tracks', async () => {
+  it('does not update preview frame on ruler hover', async () => {
     const { container } = render(
       <div className="timeline-container" data-timeline-scroll-container>
         <TimelineMarkers duration={10} width={1000} />
@@ -148,14 +148,13 @@ describe('TimelineMarkers ruler scrub cancellation', () => {
     })
 
     fireEvent.mouseMove(ruler, { clientX: 100 })
-    await waitFor(() => expect(usePlaybackStore.getState().previewFrame).toBe(30))
+    expect(usePlaybackStore.getState().previewFrame).toBeNull()
 
     fireEvent.mouseLeave(ruler, { relatedTarget: track })
-
-    expect(usePlaybackStore.getState().previewFrame).toBe(30)
+    expect(usePlaybackStore.getState().previewFrame).toBeNull()
   })
 
-  it('clears the skim target when the pointer truly leaves the timeline', async () => {
+  it('does not update preview frame on ruler hover or leave', async () => {
     const { container } = render(
       <div className="timeline-container" data-timeline-scroll-container>
         <TimelineMarkers duration={10} width={1000} />
@@ -178,15 +177,14 @@ describe('TimelineMarkers ruler scrub cancellation', () => {
     })
 
     fireEvent.mouseMove(ruler, { clientX: 100 })
-    await waitFor(() => expect(usePlaybackStore.getState().previewFrame).toBe(30))
+    expect(usePlaybackStore.getState().previewFrame).toBeNull()
 
     fireEvent.mouseLeave(ruler, { relatedTarget: outside })
-
     expect(usePlaybackStore.getState().previewFrame).toBeNull()
     outside.remove()
   })
 
-  it('publishes only the newest ruler hover once per display frame', () => {
+  it('does not schedule RAF for hover preview', () => {
     const frameCallbacks: FrameRequestCallback[] = []
     vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) => {
       frameCallbacks.push(callback)
@@ -212,11 +210,8 @@ describe('TimelineMarkers ruler scrub cancellation', () => {
     fireEvent.mouseMove(ruler, { clientX: 75 })
     fireEvent.mouseMove(ruler, { clientX: 100 })
 
-    expect(frameCallbacks).toHaveLength(1)
+    expect(frameCallbacks).toHaveLength(0)
     expect(usePlaybackStore.getState().previewFrame).toBeNull()
-
-    act(() => frameCallbacks[0]?.(performance.now()))
-    expect(usePlaybackStore.getState().previewFrame).toBe(30)
   })
 
   it('keeps the IO strip in its own lane above the viewport ruler canvas', () => {

@@ -71,6 +71,7 @@
       "detectingSilence": "Detecting Silence",
       "dissolveCompoundClip": "Dissolve Compound Clip",
       "extractEmbeddedSubtitles": "Extract Embedded Subtitles",
+      "importSubtitleFile": "Import Subtitle File",
       "generateAudioFromText": "Generate Audio From Text",
       "generateCaptions": "Generate Captions",
       "insertFreezeFrame": "Insert Freeze Frame",

@@ -71,6 +71,7 @@
       "detectingSilence": "無音を検出中",
       "dissolveCompoundClip": "複合クリップを解除",
       "extractEmbeddedSubtitles": "埋め込み字幕を抽出",
+      "importSubtitleFile": "字幕ファイルをインポート",
       "generateAudioFromText": "テキストから音声を生成",
       "generateCaptions": "キャプションを生成",
       "insertFreezeFrame": "フリーズフレームを挿入",

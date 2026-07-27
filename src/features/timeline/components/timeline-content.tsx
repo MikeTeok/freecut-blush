@@ -1355,7 +1355,6 @@ export const TimelineContent = memo(function TimelineContent({
         return
       }
 
-      // Skip during playback
       if (usePlaybackStore.getState().isPlaying) {
         if (usePlaybackStore.getState().previewFrame !== null) {
           setPreviewFrameRef.current(null)
@@ -1375,7 +1374,6 @@ export const TimelineContent = memo(function TimelineContent({
         return
       }
 
-      // Skip during any drag (playhead drag, item drag, marquee)
       if (!marqueePointerDownRef.current && (dragWasActiveRef.current || scrubWasActiveRef.current))
         return
 
@@ -1385,7 +1383,6 @@ export const TimelineContent = memo(function TimelineContent({
       const rect = scrollContainer.getBoundingClientRect()
       const x = e.clientX - rect.left + scrollContainer.scrollLeft
 
-      // In razor mode with Shift held, snap to nearby targets
       const isRazor = useSelectionStore.getState().activeTool === 'razor'
       let frame: number
       if (isRazor && e.shiftKey) {
@@ -1407,7 +1404,6 @@ export const TimelineContent = memo(function TimelineContent({
         )
       }
 
-      // Detect hovered item
       const target = e.target as HTMLElement
       const itemEl = target.closest('[data-item-id]') as HTMLElement | null
       const itemId = itemEl?.dataset.itemId
@@ -1416,27 +1412,12 @@ export const TimelineContent = memo(function TimelineContent({
         marqueeReleasePreviewRef.current = { frame, itemId }
         return
       }
-
-      // RAF-throttle the store update
-      if (previewRafRef.current !== null) {
-        cancelAnimationFrame(previewRafRef.current)
-      }
-      previewRafRef.current = requestAnimationFrame(() => {
-        previewRafRef.current = null
-        withPerfMeasure('tl.raf.previewHover', () => setPreviewFrameRef.current(frame, itemId))
-      })
     },
     [buildRazorSnapTargets],
   )
 
   const handleTimelineMouseLeave = useCallback(() => {
     if (marqueePointerDownRef.current) return
-
-    if (previewRafRef.current !== null) {
-      cancelAnimationFrame(previewRafRef.current)
-      previewRafRef.current = null
-    }
-    setPreviewFrameRef.current(null)
   }, [])
 
   // Calculate the actual timeline duration and width based on content

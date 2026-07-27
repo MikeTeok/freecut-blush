@@ -71,6 +71,7 @@
       "detectingSilence": "Detectando silencio",
       "dissolveCompoundClip": "Dissolver clipe composto",
       "extractEmbeddedSubtitles": "Extrair legendas incorporadas",
+      "importSubtitleFile": "Importar arquivo de legenda",
       "generateAudioFromText": "Gerar audio a partir de texto",
       "generateCaptions": "Gerar legendas",
       "insertFreezeFrame": "Inserir quadro congelado",

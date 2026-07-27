@@ -71,6 +71,7 @@
       "detectingSilence": "Sessizlik algılanıyor",
       "dissolveCompoundClip": "Bileşik klibi çöz",
       "extractEmbeddedSubtitles": "Gömülü altyazıları çıkar",
+      "importSubtitleFile": "Altyazı dosyasını içe aktar",
       "generateAudioFromText": "Metinden ses oluştur",
       "generateCaptions": "Altyazı oluştur",
       "insertFreezeFrame": "Donmuş kare ekle",

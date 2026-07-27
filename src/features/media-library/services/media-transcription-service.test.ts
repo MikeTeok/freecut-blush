@@ -255,18 +255,15 @@ describe('mediaTranscriptionService.insertTranscriptAsCaptions', () => {
     expect(insertedItems).toHaveLength(1)
     expect(insertedItems[0]?.trackId).toBe(captionTrack?.id)
     expect(insertedItems[0]).toMatchObject({
-      type: 'subtitle',
-      label: 'Transcript',
-      source: {
+      type: 'text',
+      textRole: 'caption',
+      text: 'Hello there',
+      captionSource: {
         type: 'transcript',
         mediaId: 'media-1',
         clipId: 'clip-1',
       },
-      cues: [{ text: 'Hello there' }],
     })
-    const insertedCue = insertedItems[0]?.type === 'subtitle' ? insertedItems[0].cues[0] : undefined
-    expect(insertedCue?.startSeconds).toBeCloseTo(0)
-    expect(insertedCue?.endSeconds).toBeCloseTo(2)
     expect(removeItems).not.toHaveBeenCalled()
   })
 
@@ -354,7 +351,7 @@ describe('mediaTranscriptionService.insertTranscriptAsCaptions', () => {
     const insertedItems = addItems.mock.calls[0]![0] as TimelineItem[]
     expect(insertedItems[0]?.trackId).toBe(captionTrack?.id)
     expect(insertedItems[0]?.trackId).not.toBe('track-audio')
-    expect(insertedItems[0]?.type).toBe('subtitle')
+    expect(insertedItems[0]?.type).toBe('text')
     expect(removeTimelineItemsExactMock).toHaveBeenCalledWith(['caption-old'])
     expect(removeItems).not.toHaveBeenCalled()
   })
@@ -445,27 +442,26 @@ describe('mediaTranscriptionService.insertTranscriptAsCaptions', () => {
     })
 
     expect(result).toEqual({
-      insertedItemCount: 1,
+      insertedItemCount: 2,
       removedItemCount: 1,
     })
     expect(setTracks).not.toHaveBeenCalled()
     expect(removeTimelineItemsExactMock).toHaveBeenCalledWith(['transcript-old'])
     expect(removeItems).not.toHaveBeenCalled()
     const insertedItems = addItems.mock.calls[0]![0] as TimelineItem[]
-    expect(insertedItems).toHaveLength(1)
+    expect(insertedItems).toHaveLength(2)
     expect(insertedItems[0]).toMatchObject({
-      type: 'subtitle',
+      type: 'text',
+      textRole: 'caption',
       trackId: 'track-captions',
-      linkedGroupId: 'linked-av-1',
-      source: {
-        type: 'transcript',
-        mediaId: 'media-1',
-        clipId: 'clip-1',
-      },
+      text: 'Fresh one',
     })
-    if (insertedItems[0]?.type === 'subtitle') {
-      expect(insertedItems[0].cues.map((cue) => cue.text)).toEqual(['Fresh one', 'Fresh two'])
-    }
+    expect(insertedItems[1]).toMatchObject({
+      type: 'text',
+      textRole: 'caption',
+      trackId: 'track-captions',
+      text: 'Fresh two',
+    })
   })
 })
 
@@ -576,44 +572,32 @@ describe('mediaTranscriptionService.enableTranscriptCaptions', () => {
     })
 
     expect(result).toEqual({
-      updatedClipCount: 1,
+      updatedClipCount: 2,
       removedItemCount: 1,
     })
     expect(setTracks).not.toHaveBeenCalled()
-    expect(addItems).not.toHaveBeenCalled()
     expect(removeItems).not.toHaveBeenCalled()
     expect(removeTimelineItemsExactMock).toHaveBeenCalledWith(['transcript-old'])
-    expect(updateItem).toHaveBeenCalledWith(
-      'clip-1',
-      expect.objectContaining({
-        transcriptCaptions: expect.objectContaining({
-          type: 'transcript',
-          mediaId: 'media-1',
-          enabled: true,
-          style: expect.objectContaining({
-            fontFamily: expect.any(String),
-            transform: expect.objectContaining({
-              width: expect.any(Number),
-              height: expect.any(Number),
-            }),
-          }),
-          cues: [
-            {
-              id: 'transcript-media-1-0',
-              startSeconds: 0,
-              endSeconds: 1,
-              text: 'Fresh one',
-            },
-            {
-              id: 'transcript-media-1-1',
-              startSeconds: 1,
-              endSeconds: 3,
-              text: 'Fresh two',
-            },
-          ],
-        }),
-      }),
-    )
+    expect(addItems).toHaveBeenCalledTimes(1)
+    const insertedItems = addItems.mock.calls[0]![0] as TimelineItem[]
+    expect(insertedItems).toHaveLength(2)
+    expect(insertedItems[0]).toMatchObject({
+      type: 'text',
+      textRole: 'caption',
+      trackId: 'track-captions',
+      text: 'Fresh one',
+      captionSource: {
+        type: 'transcript',
+        mediaId: 'media-1',
+        clipId: 'clip-1',
+      },
+    })
+    expect(insertedItems[1]).toMatchObject({
+      type: 'text',
+      textRole: 'caption',
+      text: 'Fresh two',
+    })
+    expect(updateItem).not.toHaveBeenCalled()
   })
 
   it('can enable transcript captions without changing selection', async () => {
@@ -633,6 +617,7 @@ describe('mediaTranscriptionService.enableTranscriptCaptions', () => {
       speed: 1,
     }
     const updateItem = vi.fn()
+    const addItems = vi.fn()
 
     useTimelineStoreGetStateMock.mockReturnValue({
       fps: 30,
@@ -640,7 +625,7 @@ describe('mediaTranscriptionService.enableTranscriptCaptions', () => {
       items: [clip],
       setTracks: vi.fn(),
       removeItems: vi.fn(),
-      addItems: vi.fn(),
+      addItems,
       updateItem,
     })
 
@@ -661,14 +646,8 @@ describe('mediaTranscriptionService.enableTranscriptCaptions', () => {
       selectUpdatedClips: false,
     })
 
-    expect(updateItem).toHaveBeenCalledWith(
-      'clip-1',
-      expect.objectContaining({
-        transcriptCaptions: expect.objectContaining({
-          enabled: true,
-        }),
-      }),
-    )
+    expect(addItems).toHaveBeenCalledTimes(1)
+    expect(updateItem).not.toHaveBeenCalled()
     expect(selectItemsMock).not.toHaveBeenCalled()
   })
 })

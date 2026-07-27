@@ -71,6 +71,7 @@
       "detectingSilence": "무음 감지 중",
       "dissolveCompoundClip": "복합 클립 해제",
       "extractEmbeddedSubtitles": "내장 자막 추출",
+      "importSubtitleFile": "자막 파일 가져오기",
       "generateAudioFromText": "텍스트에서 오디오 생성",
       "generateCaptions": "자막 생성",
       "insertFreezeFrame": "정지 프레임 삽입",
