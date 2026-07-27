@@ -1,6 +1,6 @@
 {
-  "name": "FreeCut",
-  "short_name": "FreeCut",
+  "name": "Freecut Blush",
+  "short_name": "Freecut Blush",
   "id": "/",
   "description": "A browser-based video editor.",
   "start_url": "/",
@@ -36,7 +36,7 @@
       "sizes": "2048x1536",
       "type": "image/png",
       "form_factor": "wide",
-      "label": "FreeCut video editor timeline"
+      "label": "Freecut Blush video editor timeline"
     }
   ]
 }

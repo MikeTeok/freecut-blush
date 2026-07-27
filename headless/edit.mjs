@@ -1,4 +1,4 @@
-// FreeCut headless edit CLI.
+// Freecut Blush headless edit CLI.
 //
 // Applies a list of edit ops to a project by driving the real timeline action
 // modules inside headless Chrome (via window.freecut.editProject), then writes

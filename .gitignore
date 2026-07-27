@@ -70,7 +70,7 @@ tmp-workspace/
 
 .vercel
 
-# FreeCut workspace artifacts, if the repo folder itself is picked as a
+# Freecut Blush workspace artifacts, if the repo folder itself is picked as a
 # workspace. Leading slash anchors to repo root so nested app code paths
 # (src/features/projects/, etc.) are not affected.
 /.freecut-workspace.json

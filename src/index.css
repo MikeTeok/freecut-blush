@@ -25,59 +25,67 @@ body.canvas-translate-cursor-not-allowed * {
 
 @layer base {
   :root {
-    /* Professional Video Editor Dark Theme - OKLCH Colors */
-    /* Inspired by Premiere Pro & DaVinci Resolve */
+    /* Rosé Pine Moon Theme */
+    /* A muted, purple-dark base with pink (love/rose) as the main signal */
 
-    /* Base - Very dark, reduced eye strain */
-    --background: oklch(0.15 0 0); /* #262626 - Main canvas */
-    --foreground: oklch(0.95 0 0); /* #f2f2f2 - Primary text */
+    /* Base */
+    --background: #232136;
+    --foreground: #e0def4;
 
     /* Panels - Layered depth */
-    --card: oklch(0.18 0 0); /* #2e2e2e - Panel backgrounds */
-    --card-foreground: oklch(0.92 0 0); /* #ebebeb - Panel text */
+    --card: #2a273f;
+    --card-foreground: #e0def4;
 
-    --popover: oklch(0.16 0 0); /* #292929 - Dropdowns */
-    --popover-foreground: oklch(0.92 0 0);
+    --popover: #393552;
+    --popover-foreground: #e0def4;
 
-    /* Primary - Orange accent (playback, active states) */
-    --primary: oklch(0.68 0.19 45); /* #FF8C3A - Vibrant orange */
-    --primary-foreground: oklch(0.12 0 0); /* Dark text on primary */
+    /* Primary - Love (vibrant pink) for playback, active states */
+    --primary: #eb6f92;
+    --primary-foreground: #232136;
 
-    /* Secondary - Subtle panel variation */
-    --secondary: oklch(0.22 0 0); /* #383838 - Secondary surfaces */
-    --secondary-foreground: oklch(0.88 0 0);
+    /* Secondary - Overlay */
+    --secondary: #393552;
+    --secondary-foreground: #e0def4;
 
     /* Muted - Backgrounds and disabled states */
-    --muted: oklch(0.2 0 0); /* #333333 - Muted backgrounds */
-    --muted-foreground: oklch(0.6 0 0); /* #999999 - Muted text */
+    --muted: #2a273f;
+    --muted-foreground: #6e6a86;
 
     /* Accent - Hover states and highlights */
-    --accent: oklch(0.24 0 0); /* #3d3d3d - Hover backgrounds */
-    --accent-foreground: oklch(0.95 0 0);
+    --accent: #393552;
+    --accent-foreground: #e0def4;
 
-    /* Destructive - Red for delete/errors */
-    --destructive: oklch(0.58 0.22 25); /* #E53E3E - Error red */
-    --destructive-foreground: oklch(0.98 0 0);
+    /* Destructive - Pinkish-red for delete/errors */
+    --destructive: #eb6f92;
+    --destructive-foreground: #232136;
 
     /* Borders - Subtle separators */
-    --border: oklch(0.25 0 0); /* #404040 - Borders */
-    --input: oklch(0.24 0 0); /* #3d3d3d - Input borders */
-    --ring: oklch(0.68 0.19 45); /* Orange focus ring */
+    --border: #393552;
+    --input: #393552;
+    --ring: #eb6f92;
 
     /* Panel system - Layered depth */
-    --panel-bg: oklch(0.18 0 0); /* #2e2e2e - Panels */
-    --panel-header: oklch(0.14 0 0); /* #242424 - Panel headers */
-    --timeline-bg: oklch(0.12 0 0); /* #1f1f1f - Timeline darker */
+    --panel-bg: #2a273f;
+    --panel-header: #232136;
+    --timeline-bg: #1e1d32;
 
     /* Sidebar */
-    --sidebar: oklch(0.18 0 0);
-    --sidebar-foreground: oklch(0.92 0 0);
-    --sidebar-primary: oklch(0.68 0.19 45);
-    --sidebar-primary-foreground: oklch(0.12 0 0);
-    --sidebar-accent: oklch(0.22 0 0);
-    --sidebar-accent-foreground: oklch(0.92 0 0);
-    --sidebar-border: oklch(0.25 0 0);
-    --sidebar-ring: oklch(0.68 0.19 45);
+    --sidebar: #2a273f;
+    --sidebar-foreground: #e0def4;
+    --sidebar-primary: #eb6f92;
+    --sidebar-primary-foreground: #232136;
+    --sidebar-accent: #393552;
+    --sidebar-accent-foreground: #e0def4;
+    --sidebar-border: #393552;
+    --sidebar-ring: #eb6f92;
+
+    /* Rosé Pine extended palette */
+    --rose: #ea9a97;
+    --gold: #f6c177;
+    --pine: #3e8fb0;
+    --foam: #9ccfd8;
+    --iris: #c4a7e7;
+    --muted-light: #908caa;
 
     --radius: 0.5rem;
   }
@@ -135,21 +143,21 @@ body.canvas-translate-cursor-not-allowed * {
   }
 
   ::-webkit-scrollbar-track {
-    background: oklch(0.15 0 0);
+    background: #232136;
   }
 
   ::-webkit-scrollbar-thumb {
-    background: oklch(0.3 0 0);
+    background: #393552;
     border-radius: 6px;
-    border: 2px solid oklch(0.15 0 0);
+    border: 2px solid #232136;
   }
 
   ::-webkit-scrollbar-thumb:hover {
-    background: oklch(0.35 0 0);
+    background: #56526e;
   }
 
   ::-webkit-scrollbar-corner {
-    background: oklch(0.15 0 0);
+    background: #232136;
   }
 
   /* Timeline keyframe sheets reserve a custom overlay rail matching the main
@@ -191,6 +199,14 @@ body.canvas-translate-cursor-not-allowed * {
   --color-panel-header: var(--panel-header);
   --color-timeline-bg: var(--timeline-bg);
 
+  /* Rosé Pine palette */
+  --color-rose: var(--rose);
+  --color-gold: var(--gold);
+  --color-pine: var(--pine);
+  --color-foam: var(--foam);
+  --color-iris: var(--iris);
+  --color-muted-light: var(--muted-light);
+
   /* Sidebar */
   --color-sidebar: var(--sidebar);
   --color-sidebar-foreground: var(--sidebar-foreground);
@@ -205,24 +221,24 @@ body.canvas-translate-cursor-not-allowed * {
 /* Professional video editor utility classes */
 @layer utilities {
   .panel-bg {
-    background-color: oklch(var(--panel-bg));
+    background-color: var(--panel-bg);
   }
 
   .panel-header {
-    background-color: oklch(var(--panel-header));
+    background-color: var(--panel-header);
   }
 
   .timeline-bg {
-    background-color: oklch(var(--timeline-bg));
+    background-color: var(--timeline-bg);
   }
 
   /* Subtle glow for active elements */
   .glow-primary {
-    box-shadow: 0 0 12px oklch(var(--primary) / 0.3);
+    box-shadow: 0 0 12px color-mix(in srgb, var(--primary) 30%, transparent);
   }
 
   .glow-primary-sm {
-    box-shadow: 0 0 6px oklch(var(--primary) / 0.25);
+    box-shadow: 0 0 6px color-mix(in srgb, var(--primary) 25%, transparent);
   }
 
   /* Text shadows for better readability on dark */
@@ -296,13 +312,13 @@ body.canvas-translate-cursor-not-allowed * {
 }
 
 [data-media-id].media-marquee-preview > * {
-  border-color: oklch(var(--primary));
-  box-shadow: 0 0 0 1px oklch(var(--primary) / 0.2);
+  border-color: var(--primary);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--primary) 20%, transparent);
 }
 
 [data-composition-id].composition-marquee-preview {
-  border-color: oklch(0.65 0.2 300);
-  box-shadow: 0 0 0 1px oklch(0.65 0.2 300 / 0.2);
+  border-color: #c4a7e7;
+  box-shadow: 0 0 0 1px color-mix(in srgb, #c4a7e7 20%, transparent);
 }
 
 @keyframes slideInLeft {

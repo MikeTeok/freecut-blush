@@ -1,6 +1,6 @@
 import { cn } from '@/shared/ui/cn'
 
-interface FreeCutLogoProps {
+interface FreecutBlushLogoProps {
   variant?: 'full' | 'icon'
   size?: 'sm' | 'md' | 'lg'
   className?: string
@@ -35,7 +35,11 @@ function ScissorIcon({ className }: { className?: string }) {
   )
 }
 
-export function FreeCutLogo({ variant = 'full', size = 'md', className }: FreeCutLogoProps) {
+export function FreecutBlushLogo({
+  variant = 'full',
+  size = 'md',
+  className,
+}: FreecutBlushLogoProps) {
   const config = sizeConfig[size]
 
   if (variant === 'icon') {
@@ -46,7 +50,7 @@ export function FreeCutLogo({ variant = 'full', size = 'md', className }: FreeCu
     <div className={cn('flex items-center', config.gap, className)}>
       <ScissorIcon className={cn(config.icon, 'text-primary')} />
       <span className={cn(config.text, 'font-semibold tracking-tight text-foreground')}>
-        FreeCut
+        Freecut Blush
       </span>
     </div>
   )

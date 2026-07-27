@@ -1,4 +1,4 @@
-# FreeCut headless render service.
+# Freecut Blush headless render service.
 #
 # Builds the harness (dist/) and runs serve.mjs with one warm headless Chrome.
 # Google Chrome (not Chromium) is used so H.264/AAC (proprietary codecs) work;
@@ -9,7 +9,7 @@
 # Build (context = repo root):
 #   docker build -f headless/Dockerfile -t freecut-headless .
 # Run (the lifecycle service requires a writable workspace for locks/atomic writes):
-#   docker run --rm -p 8787:8787 -v /path/to/FreeCutProjects:/workspace freecut-headless
+#   docker run --rm -p 8787:8787 -v /path/to/FreecutBlushProjects:/workspace freecut-headless
 #   curl localhost:8787/health    # -> {"ok":true,"gpu":true,...}
 FROM node:24-bookworm
 

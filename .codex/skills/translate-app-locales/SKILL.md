@@ -1,6 +1,6 @@
 ---
 name: translate-app-locales
-description: Add or audit full application translations across base locale files and partial i18n namespaces. Use when the user asks to add a new language, fix incomplete translations, remove English fallbacks, verify locale coverage, move language UI, or make future app sections translated in React/TypeScript apps with JSON locale files, especially FreeCut-style src/i18n/locales plus src/i18n/locales/partials structures.
+description: Add or audit full application translations across base locale files and partial i18n namespaces. Use when the user asks to add a new language, fix incomplete translations, remove English fallbacks, verify locale coverage, move language UI, or make future app sections translated in React/TypeScript apps with JSON locale files, especially Freecut Blush-style src/i18n/locales plus src/i18n/locales/partials structures.
 ---
 
 # Translate App Locales
@@ -18,9 +18,9 @@ Use this skill for end-to-end language work, not just a single JSON file.
 7. Remove obsolete UI settings only when the user asked for product behavior changes, not as part of translation by default.
 8. Validate JSON parsing, key coverage, and the app build or relevant tests.
 
-## FreeCut Locale Map
+## Freecut Blush Locale Map
 
-For FreeCut-like repos, check all of these:
+For Freecut Blush-like repos, check all of these:
 
 - `src/i18n/languages.ts`: `SUPPORTED_LANGUAGES`, direction, native name, English name.
 - `src/i18n/index.ts`: base locale imports and `baseLocales`.
@@ -33,7 +33,7 @@ If the repo has a different structure, adapt the same rule: target language must
 ## Translation Rules
 
 - Translate user-facing prose naturally in the target language.
-- Keep product names such as `FreeCut` unchanged unless the existing locale pattern translates them.
+- Keep product names such as `Freecut Blush` unchanged unless the existing locale pattern translates them.
 - Keep placeholders byte-for-byte: `{{count}}`, `{{name}}`, `<code>`, `<strong>`, `<link>`, `<accent>`, and similar markers.
 - Keep plural variants as separate keys: `_one`, `_other`, etc.
 - Keep technical acronyms when normal in the target language: FPS, GPU, URL, MP4, AAC.

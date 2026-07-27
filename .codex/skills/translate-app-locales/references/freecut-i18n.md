@@ -1,6 +1,6 @@
-# FreeCut i18n Checklist
+# Freecut Blush i18n Checklist
 
-Use this reference when working in the FreeCut repo.
+Use this reference when working in the Freecut Blush repo.
 
 ## Files
 

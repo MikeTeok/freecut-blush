@@ -1,4 +1,4 @@
-// FreeCut headless render CLI.
+// Freecut Blush headless render CLI.
 //
 // Renders a project from a workspace folder to a video file, driving the real
 // render engine inside headless Chrome via the window.freecut harness.

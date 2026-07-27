@@ -11,40 +11,34 @@
  */
 
 @theme {
-  /* Timeline item type colors - OKLCH format (dark, muted for dark theme) */
-  --color-timeline-baseclip: oklch(0.42 0 0);
-  --color-timeline-video: oklch(0.3991 0.0401 250);
-  --color-timeline-audio: oklch(0.22 0.02 302);
-  --color-timeline-motion-segment: oklch(0.38 0 0);
-  --color-timeline-image: oklch(0.62 0.17 250);
-  --color-timeline-text: oklch(0.671 0 290);
-  --color-timeline-shape: oklch(0.68 0.19 45);
+  /* Timeline item type colors - Rosé Pine Moon palette */
+  --color-timeline-baseclip: #56526e;
+  --color-timeline-video: #3e8fb0;
+  --color-timeline-audio: #c4a7e7;
+  --color-timeline-motion-segment: #56526e;
+  --color-timeline-image: #9ccfd8;
+  --color-timeline-text: #908caa;
+  --color-timeline-shape: #eb6f92;
 
   /* Playhead color */
-  --color-timeline-playhead: oklch(0.68 0.19 45); /* Orange (matches primary) */
+  --color-timeline-playhead: #eb6f92;
 
   /* In/Out marker colors */
-  --color-timeline-in: oklch(0.65 0.18 142); /* Green - in point */
-  --color-timeline-out: oklch(0.61 0.22 29); /* Red - out point */
-  --color-timeline-io-handle: oklch(
-    0.74 0.16 248
-  ); /* Bright blue handle for draggable I/O markers */
-  --color-timeline-io-range-fill: oklch(0.64 0.14 248 / 0.5); /* Cohesive blue in/out span fill */
-  --color-timeline-io-range-border: oklch(
-    0.78 0.13 248 / 0.85
-  ); /* Light blue outline for in/out span */
-  --color-timeline-io-range-glow: oklch(
-    0.74 0.16 248 / 0.32
-  ); /* Subtle blue glow around the span */
+  --color-timeline-in: #9ccfd8;
+  --color-timeline-out: #eb6f92;
+  --color-timeline-io-handle: #c4a7e7;
+  --color-timeline-io-range-fill: #c4a7e7 / 0.5;
+  --color-timeline-io-range-border: #c4a7e7 / 0.85;
+  --color-timeline-io-range-glow: #c4a7e7 / 0.32;
 
   /* Marker color */
-  --color-timeline-marker: oklch(0.65 0.2 250); /* Blue - timeline markers */
+  --color-timeline-marker: #f6c177;
 
   /* Snap/Join indicator colors */
-  --color-timeline-snap: #f97316; /* orange-500 - snap indicator */
-  --color-timeline-join: #fb923c; /* orange-400 - join indicator */
+  --color-timeline-snap: #eb6f92;
+  --color-timeline-join: #ea9a97;
 
-  --color-video-preview-background: oklch(0.1914 0 58);
+  --color-video-preview-background: #1e1d32;
 }
 
 /* Scissors cursor for razor/cut tool - uses Lucide scissors icon rotated to face up */
@@ -221,8 +215,8 @@ body.timeline-external-media-drag [data-transition-id] * {
     -45deg,
     transparent,
     transparent 6px,
-    oklch(50% 0 0deg / 12%) 6px,
-    oklch(50% 0 0deg / 12%) 8px
+    color-mix(in srgb, #e0def4 8%, transparent) 6px,
+    color-mix(in srgb, #e0def4 8%, transparent) 8px
   );
 }
 
@@ -249,49 +243,49 @@ body.timeline-external-media-drag [data-transition-id] * {
 .bg-waveform-gradient {
   background: linear-gradient(
     to bottom,
-    oklch(0.2 0 0) 0%,
-    oklch(0.28 0 0) 50%,
-    oklch(0.2 0 0) 100%
+    #2a273f 0%,
+    #393552 50%,
+    #2a273f 100%
   );
 }
 
-/* Image clip gradient background - subtle blue tint */
+/* Image clip gradient background - subtle foam tint */
 .bg-image-gradient {
   background: linear-gradient(
     to bottom,
-    oklch(0.2 0.02 250) 0%,
-    oklch(0.28 0.02 250) 50%,
-    oklch(0.2 0.02 250) 100%
+    color-mix(in srgb, #9ccfd8 15%, #2a273f) 0%,
+    color-mix(in srgb, #9ccfd8 25%, #393552) 50%,
+    color-mix(in srgb, #9ccfd8 15%, #2a273f) 100%
   );
 }
 
-/* Audio clip gradient background - subtle purple tint */
+/* Audio clip gradient background - subtle iris tint */
 .bg-audio-gradient {
   background: linear-gradient(
     to bottom,
-    oklch(0.2 0.02 302) 0%,
-    oklch(0.28 0.02 302) 50%,
-    oklch(0.2 0.02 302) 100%
+    color-mix(in srgb, #c4a7e7 15%, #2a273f) 0%,
+    color-mix(in srgb, #c4a7e7 25%, #393552) 50%,
+    color-mix(in srgb, #c4a7e7 15%, #2a273f) 100%
   );
 }
 
-/* Text clip gradient background - subtle purple tint */
+/* Text clip gradient background - subtle muted tint */
 .bg-text-gradient {
   background: linear-gradient(
     to bottom,
-    oklch(0.2 0.02 290) 0%,
-    oklch(0.28 0.02 290) 50%,
-    oklch(0.2 0.02 290) 100%
+    color-mix(in srgb, #908caa 15%, #2a273f) 0%,
+    color-mix(in srgb, #908caa 25%, #393552) 50%,
+    color-mix(in srgb, #908caa 15%, #2a273f) 100%
   );
 }
 
-/* Shape clip gradient background - subtle orange tint */
+/* Shape clip gradient background - subtle love/pink tint */
 .bg-shape-gradient {
   background: linear-gradient(
     to bottom,
-    oklch(0.2 0.02 45) 0%,
-    oklch(0.28 0.02 45) 50%,
-    oklch(0.2 0.02 45) 100%
+    color-mix(in srgb, #eb6f92 15%, #2a273f) 0%,
+    color-mix(in srgb, #eb6f92 25%, #393552) 50%,
+    color-mix(in srgb, #eb6f92 15%, #2a273f) 100%
   );
 }
 

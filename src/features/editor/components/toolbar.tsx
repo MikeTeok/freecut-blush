@@ -47,7 +47,7 @@ const SAVE_ANIMATION_MIN_MS = 1800
 const SaveDirtyIndicator = memo(function SaveDirtyIndicator() {
   const isDirty = useTimelineStore((state) => state.isDirty)
   return isDirty ? (
-    <span className="absolute -right-1 -top-1 h-2 w-2 animate-pulse rounded-full bg-orange-500" />
+    <span className="absolute -right-1 -top-1 h-2 w-2 animate-pulse rounded-full bg-primary" />
   ) : null
 })
 
@@ -98,18 +98,15 @@ export const Toolbar = memo(function Toolbar({
   const maxItemEndFrame = useItemsStore((state) => state.maxItemEndFrame)
   const mediaDependencyIds = useItemsStore((state) => state.mediaDependencyIds)
   const brokenMediaIds = useMediaLibraryStore((state) => state.brokenMediaIds)
-  const projectSummary = useMemo(
-    () => {
-      const projectMediaIds = new Set(mediaDependencyIds)
-      return {
-        durationSeconds: project.fps > 0 ? maxItemEndFrame / project.fps : 0,
-        clipCount: itemCount,
-        mediaCount: mediaDependencyIds.length,
-        brokenMediaCount: brokenMediaIds.filter((mediaId) => projectMediaIds.has(mediaId)).length,
-      }
-    },
-    [brokenMediaIds, itemCount, maxItemEndFrame, mediaDependencyIds, project.fps],
-  )
+  const projectSummary = useMemo(() => {
+    const projectMediaIds = new Set(mediaDependencyIds)
+    return {
+      durationSeconds: project.fps > 0 ? maxItemEndFrame / project.fps : 0,
+      clipCount: itemCount,
+      mediaCount: mediaDependencyIds.length,
+      brokenMediaCount: brokenMediaIds.filter((mediaId) => projectMediaIds.has(mediaId)).length,
+    }
+  }, [brokenMediaIds, itemCount, maxItemEndFrame, mediaDependencyIds, project.fps])
 
   useEffect(() => {
     setHasUnseenWhatsNew(hasUnseenChangelog())
@@ -167,7 +164,7 @@ export const Toolbar = memo(function Toolbar({
 
   return (
     <div
-      className="panel-header flex flex-shrink-0 items-center gap-2.5 border-b border-border px-3"
+      className="flex flex-shrink-0 items-center gap-2.5 border-b border-border bg-card px-3"
       style={{ height: EDITOR_LAYOUT_CSS_VALUES.toolbarHeight }}
       role="toolbar"
       aria-label={t('toolbar.ariaLabel')}

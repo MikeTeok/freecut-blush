@@ -1,4 +1,4 @@
-# FreeCut Web
+# Freecut Blush Web
 
 Browser-based multi-track video editor. React 19 + TypeScript + Vite.
 

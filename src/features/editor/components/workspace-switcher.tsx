@@ -30,7 +30,7 @@ export const WorkspaceSwitcher = memo(function WorkspaceSwitcher() {
     <div
       role="tablist"
       aria-label={t('toolbar.workspaces.label')}
-      className="flex items-center gap-0.5 rounded-md bg-muted p-0.5"
+      className="flex items-center gap-1"
     >
       {WORKSPACE_ITEMS.map(({ id, icon: Icon, labelKey }) => {
         const isActive = workspace === id
@@ -42,10 +42,10 @@ export const WorkspaceSwitcher = memo(function WorkspaceSwitcher() {
             aria-selected={isActive}
             onClick={() => setWorkspace(id)}
             className={cn(
-              'flex h-7 items-center gap-1.5 rounded-[5px] px-3 text-xs font-medium transition-colors',
+              'flex h-7 items-center gap-1.5 rounded-md border px-3 text-xs font-medium transition-all',
               isActive
-                ? 'bg-background text-foreground shadow-sm'
-                : 'text-muted-foreground hover:text-foreground',
+                ? 'border-primary text-primary'
+                : 'border-transparent text-muted-foreground hover:text-foreground',
             )}
           >
             <Icon className="h-3.5 w-3.5" />

@@ -142,7 +142,7 @@ export default defineConfig({
             normalizedId.endsWith('/src/features/workspace-gate/workspace-gate-splash.tsx') ||
             normalizedId.endsWith('/src/features/workspace-gate/use-pathname.ts')
           const isAppShellComponent =
-            normalizedId.endsWith('/src/components/brand/freecut-logo.tsx') ||
+            normalizedId.endsWith('/src/components/brand/freecut-blush-logo.tsx') ||
             normalizedId.endsWith('/src/components/ui/accordion.tsx') ||
             normalizedId.endsWith('/src/components/ui/button.tsx') ||
             normalizedId.endsWith('/src/components/ui/button-variants.ts') ||

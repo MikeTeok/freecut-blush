@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to FreeCut. Weekly CalVer: `YYYY.MM.DD` = the Monday of the release week (Mon–Sun).
+All notable changes to Freecut Blush. Weekly CalVer: `YYYY.MM.DD` = the Monday of the release week (Mon–Sun).
 
 <!-- Entries below are generated via the `changelog` skill. Newest first. -->
 
@@ -210,7 +210,7 @@ All notable changes to FreeCut. Weekly CalVer: `YYYY.MM.DD` = the Monday of the 
 - Language picker in editor settings, with auto-detection from your browser
 - Effect names, timeline labels, and media library all translate alongside the rest of the UI
 - Supertonic voice engine added to AI text-to-speech
-- Install FreeCut as a desktop app, with prompts when new versions ship
+- Install Freecut Blush as a desktop app, with prompts when new versions ship
 
 ## [2026.05.04] — week of 2026-05-04 to 2026-05-10
 

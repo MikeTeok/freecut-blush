@@ -10,7 +10,7 @@ import {
   ExternalLink,
   BookOpen,
 } from 'lucide-react'
-import { FreeCutLogo } from '@/components/brand/freecut-logo'
+import { FreecutBlushLogo } from '@/components/brand/freecut-blush-logo'
 import { DiscordIcon } from '@/components/brand/discord-icon'
 import { Button } from '@/components/ui/button'
 import { DISCORD_INVITE_URL } from '@/config/community'
@@ -142,13 +142,19 @@ function LandingPage() {
       {/* Hero Section */}
       <section className="relative flex min-h-[60vh] flex-col items-center justify-center px-6 py-12">
         {/* Subtle gradient background */}
-        <div className="pointer-events-none absolute inset-0 overflow-hidden">
-          <div className="absolute left-1/2 top-1/2 h-[600px] w-[600px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary/5 blur-3xl" />
+        <div className="pointer-events-none absolute inset-0">
+          <div
+            className="absolute left-1/2 top-1/2 h-[700px] w-[700px] -translate-x-1/2 -translate-y-1/2 rounded-full"
+            style={{
+              backgroundColor: 'color-mix(in srgb, #eb6f92 20%, transparent)',
+              filter: 'blur(80px)',
+            }}
+          />
         </div>
 
         <div className="relative z-10 flex flex-col items-center text-center animate-fade-in">
           <div className="mb-6 flex items-center gap-3">
-            <FreeCutLogo size="lg" />
+            <FreecutBlushLogo size="lg" />
             <span className="rounded-full bg-primary/15 px-3 py-1 text-xs font-medium text-primary">
               {t('projects.landing.beta')}
             </span>

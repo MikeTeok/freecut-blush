@@ -1,4 +1,6 @@
-# FreeCut
+# Freecut Blush
+
+A browser-based, multi-track video editor forked from [FreeCut](https://github.com/walterlow/freecut) and tailored to my taste.
 
 **[freecut.net](http://freecut.net/)**
 
@@ -7,24 +9,27 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Discord](https://img.shields.io/badge/Discord-Join%20community-5865F2?logo=discord&logoColor=white)](https://discord.gg/aQtQ7NyUBd)
 
-![FreeCut editor workspace](./public/assets/landing/main.png)
+![Freecut Blush editor workspace](./public/assets/landing/main.png)
 
-FreeCut is a browser-based, multi-track video editor. No install, no uploads:
+Freecut Blush is a browser-based, multi-track video editor. No install, no uploads:
 projects and media stay local, while editing, preview, analysis, transcription,
 AI generation, and export run in the browser through WebGPU, WebCodecs, Web
 Workers, OPFS, and the File System Access API.
 
-FreeCut writes projects, linked media metadata, thumbnails, waveforms, generated
+Freecut Blush writes projects, linked media metadata, thumbnails, waveforms, generated
 AI assets, transcripts, scene cuts, and caches as plain files inside a workspace
 folder you choose on disk.
 
+Built upon [FreeCut](https://github.com/walterlow/freecut) by walterlow — a browser-based,
+multi-track video editor with WebGPU, WebCodecs, and local-first storage.
+
 ## User Guide
 
-New to FreeCut? Start with the [user guide](https://freecut.net/docs).
+New to Freecut Blush? Start with the [user guide](https://freecut.net/docs).
 
 ## Community
 
-Join the [FreeCut Discord](https://discord.gg/aQtQ7NyUBd) to share edits,
+Join the [Freecut Blush Discord](https://discord.gg/aQtQ7NyUBd) to share edits,
 request features, report bugs, and give feedback on browser-based editing workflows.
 
 ## Screenshots
@@ -33,31 +38,31 @@ request features, report bugs, and give feedback on browser-based editing workfl
   <tr>
     <td width="50%">
       <strong>Timeline</strong><br />
-      <img src="./public/assets/landing/timeline.png" alt="FreeCut multi-track timeline" width="100%" />
+      <img src="./public/assets/landing/timeline.png" alt="Freecut Blush multi-track timeline" width="100%" />
     </td>
     <td width="50%">
       <strong>Keyframes</strong><br />
-      <img src="./public/assets/landing/dopesheet.png" alt="FreeCut dopesheet keyframe editor" width="100%" />
+      <img src="./public/assets/landing/dopesheet.png" alt="Freecut Blush dopesheet keyframe editor" width="100%" />
     </td>
   </tr>
   <tr>
     <td width="50%">
       <strong>Semantic scene search</strong><br />
-      <img src="./public/assets/landing/semantic.png" alt="FreeCut semantic scene browser" width="100%" />
+      <img src="./public/assets/landing/semantic.png" alt="Freecut Blush semantic scene browser" width="100%" />
     </td>
     <td width="50%">
       <strong>Export</strong><br />
-      <img src="./public/assets/landing/export.png" alt="FreeCut export dialog" width="100%" />
+      <img src="./public/assets/landing/export.png" alt="Freecut Blush export dialog" width="100%" />
     </td>
   </tr>
   <tr>
     <td width="50%">
       <strong>Audio EQ</strong><br />
-      <img src="./public/assets/landing/eq.png" alt="FreeCut audio EQ controls" width="100%" />
+      <img src="./public/assets/landing/eq.png" alt="Freecut Blush audio EQ controls" width="100%" />
     </td>
     <td width="50%">
       <strong>Hotkeys</strong><br />
-      <img src="./public/assets/landing/hotkeys.png" alt="FreeCut hotkey editor" width="100%" />
+      <img src="./public/assets/landing/hotkeys.png" alt="Freecut Blush hotkey editor" width="100%" />
     </td>
   </tr>
 </table>
@@ -78,7 +83,7 @@ request features, report bugs, and give feedback on browser-based editing workfl
 ### Preview & Playback
 
 - Real-time preview with transform, crop, corner-pin, mask, and group gizmos
-- Frame-accurate playback through FreeCut's custom `Clock` and composition runtime
+- Frame-accurate playback through Freecut Blush's custom `Clock` and composition runtime
 - Fast scrub overlays, decoder prewarming, adaptive preview quality, and source warming
 - Two-up and four-up edit panels for ripple, rolling, slip, and slide operations
 - GPU color scopes: waveform, vectorscope, and histogram
@@ -181,7 +186,7 @@ Open [http://localhost:5173](http://localhost:5173) in Chrome, Edge, Brave, or A
 
 ## Browser Support
 
-Chrome or Edge 113+ is recommended. FreeCut depends on WebGPU, WebCodecs, OPFS,
+Chrome or Edge 113+ is recommended. Freecut Blush depends on WebGPU, WebCodecs, OPFS,
 and the File System Access API, so a modern Chromium browser is required for the
 full workflow.
 
@@ -264,7 +269,7 @@ layer.
 
 ## Contributing
 
-FreeCut is open source but not open contribution. Pull requests are not accepted at this time.
+Freecut Blush is open source but not open contribution. Pull requests are not accepted at this time.
 
 - **Report bugs:** open an issue
 - **Suggest features:** start a discussion
