@@ -2840,21 +2840,6 @@ export const KeyframeGraphPanel = memo(function KeyframeGraphPanel({
     },
     [selectedItemForEditor],
   )
-  const handleSkim = useCallback(
-    (clipRelativeFrame: number | null) => {
-      const playback = usePlaybackStore.getState()
-      if (clipRelativeFrame === null) {
-        if (!keyframeEditorScrubbingRef.current) playback.setPreviewFrame(null)
-        return
-      }
-      if (!selectedItemForEditor || playback.isPlaying || keyframeEditorScrubbingRef.current) return
-      playback.setPreviewFrame(
-        selectedItemForEditor.from + clipRelativeFrame,
-        selectedItemForEditor.id,
-      )
-    },
-    [selectedItemForEditor],
-  )
   const handleScrubStart = useCallback(() => {
     keyframeEditorScrubbingRef.current = true
     usePlaybackStore.getState().pause()
@@ -3615,7 +3600,6 @@ export const KeyframeGraphPanel = memo(function KeyframeGraphPanel({
                   onPropertyChange={handlePropertyChange}
                   onActivePropertyChange={setSelectedProperty}
                   onScrub={handleScrub}
-                  onSkim={surface === 'edit' ? handleSkim : undefined}
                   globalFrameToPixels={
                     surface === 'edit' ? editTimelineGlobalFrameToPixels : undefined
                   }

@@ -104,9 +104,7 @@ function resolveMixedPositionValue({
   if (values.length === 0) return 0
 
   const firstValue = values[0]!
-  return values.every((value) => Math.abs(value - firstValue) < 0.1)
-    ? firstValue
-    : 'mixed'
+  return values.every((value) => Math.abs(value - firstValue) < 0.1) ? firstValue : 'mixed'
 }
 
 const PositionAxisControl = memo(function PositionAxisControl({
@@ -665,12 +663,14 @@ export const LayoutSection = memo(function LayoutSection({
   // For shapes: reset to 1:1 aspect ratio (square based on smaller dimension)
   const handleResetScale = useCallback(() => {
     const tolerance = 0.5
+    const autoOps: AutoKeyframeOperation[] = []
+    const fallbackUpdates = new Map<string, Partial<TransformProperties>>()
 
-    // For each item, reset to its source dimensions
-    items.forEach((item) => {
-      // Get current dimensions
-      const sourceDimensions = getSourceDimensions(item)
-      const resolved = resolveTransform(item, canvas, sourceDimensions)
+    // For each item, reset to fit-to-canvas dimensions
+    for (const item of items) {
+      // Get current (keyframe-resolved) transform
+      const resolved = resolvedTransformsByItem.get(item.id)
+      if (!resolved) continue
 
       // For shapes: reset to 1:1 aspect ratio
       if (item.type === 'shape' || item.type === 'text') {
@@ -678,16 +678,20 @@ export const LayoutSection = memo(function LayoutSection({
         const updates: Partial<TransformProperties> = {}
 
         if (Math.abs(resolved.width - size) > tolerance) {
-          updates.width = size
+          const op = getAutoKeyframeOperation(item.id, 'width', size)
+          if (op) autoOps.push(op)
+          else updates.width = size
         }
         if (Math.abs(resolved.height - size) > tolerance) {
-          updates.height = size
+          const op = getAutoKeyframeOperation(item.id, 'height', size)
+          if (op) autoOps.push(op)
+          else updates.height = size
         }
 
         if (Object.keys(updates).length > 0) {
-          onTransformChange([item.id], updates)
+          fallbackUpdates.set(item.id, updates)
         }
-        return
+        continue
       }
 
       // First try to get source dimensions from the item itself
@@ -701,54 +705,123 @@ export const LayoutSection = memo(function LayoutSection({
         }
       }
 
-      if (!source) return
+      if (!source) continue
+
+      // Compute fit-to-canvas dimensions (the size the item had when first dragged in)
+      const fitScale = Math.min(canvas.width / source.width, canvas.height / source.height)
+      const fitWidth = Math.round(source.width * fitScale)
+      const fitHeight = Math.round(source.height * fitScale)
 
       // Only update if dimensions actually changed
       const updates: Partial<TransformProperties> = {}
-      if (Math.abs(resolved.width - source.width) > tolerance) {
-        updates.width = source.width
+      if (Math.abs(resolved.width - fitWidth) > tolerance) {
+        const op = getAutoKeyframeOperation(item.id, 'width', fitWidth)
+        if (op) autoOps.push(op)
+        else updates.width = fitWidth
       }
-      if (Math.abs(resolved.height - source.height) > tolerance) {
-        updates.height = source.height
+      if (Math.abs(resolved.height - fitHeight) > tolerance) {
+        const op = getAutoKeyframeOperation(item.id, 'height', fitHeight)
+        if (op) autoOps.push(op)
+        else updates.height = fitHeight
       }
 
-      // Skip if no actual changes
-      if (Object.keys(updates).length === 0) return
+      if (Object.keys(updates).length > 0) {
+        fallbackUpdates.set(item.id, updates)
+      }
+    }
 
-      onTransformChange([item.id], updates)
-    })
+    if (autoOps.length > 0) {
+      applyAutoKeyframeOperations(autoOps)
+    }
+    if (fallbackUpdates.size > 0) {
+      updateItemsTransformMap(fallbackUpdates, { operation: 'resize' })
+    }
     queueMicrotask(clearTransformUiState)
-  }, [items, onTransformChange, mediaById, canvas, clearTransformUiState])
+  }, [
+    items,
+    getAutoKeyframeOperation,
+    applyAutoKeyframeOperations,
+    updateItemsTransformMap,
+    mediaById,
+    canvas,
+    resolvedTransformsByItem,
+    clearTransformUiState,
+  ])
 
   // Reset position to center (x=0, y=0)
   const handleResetPosition = useCallback(() => {
     const tolerance = 0.5
-    items.forEach((item) => {
-      const sourceDimensions = getSourceDimensions(item)
-      const resolved = resolveTransform(item, canvas, sourceDimensions)
+    const autoOps: AutoKeyframeOperation[] = []
+    const fallbackUpdates = new Map<string, Partial<TransformProperties>>()
+
+    for (const item of items) {
+      const resolved = resolvedTransformsByItem.get(item.id)
+      if (!resolved) continue
 
       const updates: Partial<TransformProperties> = {}
-      if (Math.abs(resolved.x) > tolerance) updates.x = 0
-      if (Math.abs(resolved.y) > tolerance) updates.y = 0
+      if (Math.abs(resolved.x) > tolerance) {
+        const op = getAutoKeyframeOperation(item.id, 'x', 0)
+        if (op) autoOps.push(op)
+        else updates.x = 0
+      }
+      if (Math.abs(resolved.y) > tolerance) {
+        const op = getAutoKeyframeOperation(item.id, 'y', 0)
+        if (op) autoOps.push(op)
+        else updates.y = 0
+      }
 
-      if (Object.keys(updates).length === 0) return
-      onTransformChange([item.id], updates)
-    })
+      if (Object.keys(updates).length > 0) {
+        fallbackUpdates.set(item.id, updates)
+      }
+    }
+
+    if (autoOps.length > 0) {
+      applyAutoKeyframeOperations(autoOps)
+    }
+    if (fallbackUpdates.size > 0) {
+      updateItemsTransformMap(fallbackUpdates)
+    }
     queueMicrotask(clearTransformUiState)
-  }, [items, onTransformChange, canvas, clearTransformUiState])
+  }, [
+    items,
+    getAutoKeyframeOperation,
+    applyAutoKeyframeOperations,
+    updateItemsTransformMap,
+    resolvedTransformsByItem,
+    clearTransformUiState,
+  ])
 
   // Reset rotation to 0°
   const handleResetRotation = useCallback(() => {
     const tolerance = 0.5
-    items.forEach((item) => {
-      const sourceDimensions = getSourceDimensions(item)
-      const resolved = resolveTransform(item, canvas, sourceDimensions)
+    const autoOps: AutoKeyframeOperation[] = []
+    const fallbackUpdates = new Map<string, Partial<TransformProperties>>()
 
-      if (Math.abs(resolved.rotation) <= tolerance) return
-      onTransformChange([item.id], { rotation: 0 })
-    })
+    for (const item of items) {
+      const resolved = resolvedTransformsByItem.get(item.id)
+      if (!resolved) continue
+
+      if (Math.abs(resolved.rotation) <= tolerance) continue
+      const op = getAutoKeyframeOperation(item.id, 'rotation', 0)
+      if (op) autoOps.push(op)
+      else fallbackUpdates.set(item.id, { rotation: 0 })
+    }
+
+    if (autoOps.length > 0) {
+      applyAutoKeyframeOperations(autoOps)
+    }
+    if (fallbackUpdates.size > 0) {
+      updateItemsTransformMap(fallbackUpdates)
+    }
     queueMicrotask(clearTransformUiState)
-  }, [items, onTransformChange, canvas, clearTransformUiState])
+  }, [
+    items,
+    getAutoKeyframeOperation,
+    applyAutoKeyframeOperations,
+    updateItemsTransformMap,
+    resolvedTransformsByItem,
+    clearTransformUiState,
+  ])
 
   const handleFlipHorizontalChange = useCallback(
     (checked: boolean) => {

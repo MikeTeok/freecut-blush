@@ -781,7 +781,11 @@
         "tilt": "Tilt",
         "pop": "Pop",
         "swing": "Swing"
-      }
+      },
+      "templates": "Templates",
+      "saveTemplate": "Save Current as Template",
+      "applyTemplate": "Apply template",
+      "deleteTemplate": "Delete"
     },
     "tts": {
       "seek": "Seek",

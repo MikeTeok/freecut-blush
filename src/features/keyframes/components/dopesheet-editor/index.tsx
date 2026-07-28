@@ -77,7 +77,6 @@ import { DopesheetHeaderFrameInputs } from './dopesheet-header-frame-inputs'
 import { DopesheetRulerHeader } from './dopesheet-ruler-header'
 import { DopesheetLiveRulerCanvas } from './dopesheet-live-ruler-canvas'
 import { syncDopesheetLivePixelGeometry } from './dopesheet-live-pixel-geometry'
-import { TimelinePreviewScrubberVisual } from '@/shared/ui/timeline-preview-scrubber-visual'
 import { perfMarkRender } from '@/shared/logging/perf-marks'
 import {
   TIMELINE_LIVE_SCROLL_EVENT,
@@ -87,7 +86,6 @@ import {
 import {
   beginTimelineSkimmerScrub,
   endTimelineSkimmerScrub,
-  timelineSkimmerScrubSignal,
 } from '@/shared/timeline/main-timeline-scrub'
 import { DopesheetSheetBody } from './dopesheet-sheet-body'
 import { DopesheetInterpolationButtons } from './dopesheet-interpolation-buttons'
@@ -260,8 +258,6 @@ interface DopesheetEditorProps {
   onActivePropertyChange?: (property: AnimatableProperty) => void
   /** Callback when playhead is scrubbed (frame is clip-relative) */
   onScrub?: (frame: number) => void
-  /** Callback when the ruler's skim frame changes (frame is clip-relative). */
-  onSkim?: (frame: number | null) => void
   /** Exact shared-axis mapper for an absolute timeline frame. */
   globalFrameToPixels?: (globalFrame: number) => number
   /** Main Edit timeline scroll surface used for same-frame playhead positioning. */
@@ -817,7 +813,6 @@ export const DopesheetEditor = memo(function DopesheetEditor({
   onCurveVisibilityChange,
   onActivePropertyChange,
   onScrub,
-  onSkim,
   globalFrameToPixels,
   timelineScrollContainerRef,
   timelinePanBaseScrollLeft,
@@ -1575,13 +1570,7 @@ export const DopesheetEditor = memo(function DopesheetEditor({
     linkedTimelineViewportWidth !== undefined &&
     linkedTimelineViewportWidth > 0
   const timelineCellBorderWidth =
-    presentation === 'classic'
-      ? hasLinkedTimelineAxis
-        ? 0
-        : 1
-      : presentation === 'lanes'
-        ? 1
-        : 0
+    presentation === 'classic' ? (hasLinkedTimelineAxis ? 0 : 1) : presentation === 'lanes' ? 1 : 0
   const effectiveTimelineWidth = Math.max(
     hasLinkedTimelineAxis
       ? linkedTimelineViewportWidth
@@ -1673,12 +1662,8 @@ export const DopesheetEditor = memo(function DopesheetEditor({
   )
   const sharedGridFrameToX = useCallback(
     (frame: number) =>
-      getFrameAxisX(
-        frame,
-        viewport,
-        effectiveTimelineWidth + timelineCellBorderWidth,
-        0,
-      ) - timelineCellBorderWidth,
+      getFrameAxisX(frame, viewport, effectiveTimelineWidth + timelineCellBorderWidth, 0) -
+      timelineCellBorderWidth,
     [effectiveTimelineWidth, timelineCellBorderWidth, viewport],
   )
   const getRenderedKeyframeX = useCallback(
@@ -1928,8 +1913,7 @@ export const DopesheetEditor = memo(function DopesheetEditor({
     if (timelineGridDivisions && timelineGridDivisions > 0) {
       return Array.from(
         { length: timelineGridDivisions + 1 },
-        (_, index) =>
-          viewport.startFrame + (index / timelineGridDivisions) * frameRange,
+        (_, index) => viewport.startFrame + (index / timelineGridDivisions) * frameRange,
       )
     }
     const step = getNiceTickStep(frameRange)
@@ -3007,7 +2991,7 @@ export const DopesheetEditor = memo(function DopesheetEditor({
   const scrubPointerIdRef = useRef<number | null>(null)
   const rulerScrubActiveRef = useRef(false)
   const rulerScrubHandoffFrameRef = useRef<number | null>(null)
-  const [isRulerScrubbing, setIsRulerScrubbing] = useState(false)
+  const [_isRulerScrubbing, setIsRulerScrubbing] = useState(false)
   const lastScrubbedFrameRef = useRef<number | null>(null)
   const rulerScrubClientXRef = useRef<number | null>(null)
   const rulerScrubViewportRef = useRef(viewport)
@@ -3199,8 +3183,6 @@ export const DopesheetEditor = memo(function DopesheetEditor({
   const handleRulerPointerMove = useCallback(
     (event: React.PointerEvent<HTMLDivElement>) => {
       if (disabled) return
-      const frame = getFrameFromClientX(event.clientX)
-      onSkim?.(frame)
       if (scrubPointerIdRef.current !== event.pointerId) return
       rulerScrubClientXRef.current = event.clientX
       const scrubFrame = getRulerScrubFrameFromClientX(event.clientX)
@@ -3215,19 +3197,17 @@ export const DopesheetEditor = memo(function DopesheetEditor({
     },
     [
       disabled,
-      getFrameFromClientX,
       getRulerScrubFrameFromClientX,
       getTimelineXFromClientX,
       notifyLinkedTimelineScrubFrame,
-      onSkim,
       queueRulerScrub,
       timelinePixelsPerSecond,
     ],
   )
 
   const handleRulerPointerLeave = useCallback(() => {
-    if (scrubPointerIdRef.current === null) onSkim?.(null)
-  }, [onSkim])
+    if (scrubPointerIdRef.current === null) return
+  }, [scrubPointerIdRef])
 
   const handleRulerPointerUp = useCallback(
     (event: React.PointerEvent<HTMLDivElement>) => {
@@ -4910,7 +4890,7 @@ export const DopesheetEditor = memo(function DopesheetEditor({
         itemFrom={itemFrom}
         totalFrames={totalFrames}
         clampToItemBounds={playheadClampToItemBounds}
-        followPreviewFrame={!onSkim}
+        followPreviewFrame={true}
         localScrubActiveRef={rulerScrubActiveRef}
         localScrubHandoffFrameRef={rulerScrubHandoffFrameRef}
         frameToX={frameToX}
@@ -4934,7 +4914,7 @@ export const DopesheetEditor = memo(function DopesheetEditor({
         itemFrom={itemFrom}
         totalFrames={totalFrames}
         clampToItemBounds={playheadClampToItemBounds}
-        followPreviewFrame={!onSkim}
+        followPreviewFrame={true}
         localScrubActiveRef={rulerScrubActiveRef}
         localScrubHandoffFrameRef={rulerScrubHandoffFrameRef}
         frameToX={frameToX}
@@ -4942,24 +4922,6 @@ export const DopesheetEditor = memo(function DopesheetEditor({
         positionSyncTargetRef={timelineScrollContainerRef}
         maxLeft={effectiveTimelineWidth - 1}
         className="absolute top-0 bottom-0"
-      />
-    </div>
-  ) : null
-  const skimPlayheadOverlayElement = onSkim ? (
-    <div
-      className="pointer-events-none absolute bottom-0 right-0 top-0 z-[19] overflow-hidden"
-      style={{ left: timelineContentLeft }}
-    >
-      <TimelinePreviewScrubberVisual
-        frameToPixels={globalFrameToPixels ?? ((globalFrame) => frameToX(globalFrame - itemFrom))}
-        fps={fps}
-        inRuler
-        rulerOffset={0}
-        showTooltip={false}
-        suppressed={isRulerScrubbing}
-        suppressRefs={[rulerScrubActiveRef]}
-        suppressSignal={timelineSkimmerScrubSignal}
-        positionSyncTargetRef={timelineScrollContainerRef}
       />
     </div>
   ) : null
@@ -5063,7 +5025,6 @@ export const DopesheetEditor = memo(function DopesheetEditor({
             style={{ left: columnWidth }}
           />
           {showGraphPane ? graphPaneElement : sheetBodyElement}
-          {showSheetPane ? skimPlayheadOverlayElement : null}
           {showSheetPane ? playheadOverlayElement : null}
         </div>
         {expressionDockElement}
@@ -5128,6 +5089,14 @@ export const DopesheetEditor = memo(function DopesheetEditor({
               handleHeaderFrameInputKeyDown={handleHeaderFrameInputKeyDown}
             />
           </div>
+          <div className="flex items-center gap-1.5">
+            <DopesheetInterpolationButtons
+              options={interpolationOptions}
+              selected={selectedInterpolation}
+              disabled={disabled || interpolationDisabled}
+              onSelect={onInterpolationChange}
+            />
+          </div>
         </div>
 
         <div
@@ -5137,7 +5106,6 @@ export const DopesheetEditor = memo(function DopesheetEditor({
           )}
           onWheel={viewportInteractionEnabled ? handleWheel : undefined}
         >
-          {skimPlayheadOverlayElement}
           {playheadOverlayElement}
           {rulerHeaderElement}
           {sheetBodyElement}
@@ -5342,14 +5310,12 @@ export const DopesheetEditor = memo(function DopesheetEditor({
             >
               {graphPaneElement}
             </div>
-            {skimPlayheadOverlayElement}
             {splitPlayheadOverlayElement}
           </>
         ) : (
           <>
             {/* Sheet mode only: the graph renders its own aligned playhead
                 (GraphPlayhead) using the graph's coordinate space. */}
-            {showSheetPane && skimPlayheadOverlayElement}
             {showSheetPane && playheadOverlayElement}
             {rulerHeaderElement}
             {showGraphPane ? graphPaneElement : sheetBodyElement}

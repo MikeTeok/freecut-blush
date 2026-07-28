@@ -260,7 +260,6 @@ describe('DopesheetEditor playhead overlay', () => {
         height={240}
         onScrub={(frame) => usePlaybackStore.getState().setScrubFrame(frame, 'item-1')}
         onScrubEnd={() => usePlaybackStore.getState().setPreviewFrame(null)}
-        onSkim={() => {}}
       />,
     )
 
@@ -289,7 +288,6 @@ describe('DopesheetEditor playhead overlay', () => {
         width={640}
         height={240}
         onScrub={(frame) => usePlaybackStore.getState().setScrubFrame(frame, 'item-1')}
-        onSkim={() => {}}
       />,
     )
 
@@ -516,8 +514,7 @@ describe('DopesheetEditor playhead overlay', () => {
     expect(forwardedEvents).toHaveLength(2)
   })
 
-  it('shows a separate skim playhead while keeping the committed playhead in place', () => {
-    const onSkim = vi.fn()
+  it('follows an active main timeline scrub', () => {
     render(
       <DopesheetEditor
         itemId="item-1"
@@ -526,39 +523,6 @@ describe('DopesheetEditor playhead overlay', () => {
         frameViewport={{ startFrame: 0, endFrame: 100 }}
         width={640}
         height={240}
-        onSkim={onSkim}
-        globalFrameToPixels={() => 123.25}
-      />,
-    )
-
-    const committed = screen.getByTestId('dopesheet-playhead-line')
-    const committedTransform = committed.style.transform
-    const skim = screen.getByTestId('timeline-preview-scrubber')
-
-    act(() => usePlaybackStore.getState().setPreviewFrame(80, 'item-1'))
-
-    expect(skim.style.display).toBe('')
-    expect(skim.style.transform).toBe('translate3d(123.25px, 0, 0)')
-    expect(committed.style.transform).toBe(committedTransform)
-
-    const ruler = screen.getByTestId('dopesheet-ruler')
-    fireEvent.pointerMove(ruler, { pointerId: 1, clientX: 196 })
-    expect(onSkim).toHaveBeenCalledWith(50)
-    fireEvent.pointerLeave(ruler, { pointerId: 1, clientX: 196 })
-    expect(onSkim).toHaveBeenLastCalledWith(null)
-  })
-
-  it('follows an active main timeline scrub without following ordinary hover previews', () => {
-    const onSkim = vi.fn()
-    render(
-      <DopesheetEditor
-        itemId="item-1"
-        keyframesByProperty={{ x: [] }}
-        currentFrame={10}
-        frameViewport={{ startFrame: 0, endFrame: 100 }}
-        width={640}
-        height={240}
-        onSkim={onSkim}
       />,
     )
 
@@ -566,7 +530,6 @@ describe('DopesheetEditor playhead overlay', () => {
     const initialTransform = committed.style.transform
 
     act(() => usePlaybackStore.getState().setPreviewFrame(40, 'item-1'))
-    expect(committed.style.transform).toBe(initialTransform)
 
     mainTimelineScrubActiveRef.current = true
     act(() => usePlaybackStore.getState().setScrubFrame(60))
@@ -601,7 +564,6 @@ describe('DopesheetEditor playhead overlay', () => {
         frameViewport={{ startFrame: 0, endFrame: 100 }}
         width={640}
         height={240}
-        onSkim={() => {}}
         globalFrameToPixels={globalFrameToPixels}
         timelineScrollContainerRef={timelineScrollContainerRef}
       />,
@@ -642,7 +604,6 @@ describe('DopesheetEditor playhead overlay', () => {
         frameViewport={{ startFrame: 0, endFrame: 100 }}
         width={640}
         height={240}
-        onSkim={() => {}}
         globalFrameToPixels={globalFrameToPixels}
         timelineScrollContainerRef={timelineScrollContainerRef}
       />,
@@ -944,44 +905,6 @@ describe('DopesheetEditor playhead overlay', () => {
       .getByTestId('dopesheet-ruler')
       .querySelector('[data-motion-ruler-surface]')
     expect(rulerSurface?.children.length).toBeGreaterThan(10)
-  })
-
-  it('hides the skim playhead while scrubbing the keyframe ruler', () => {
-    const onSkim = vi.fn((frame: number | null) => {
-      usePlaybackStore.getState().setPreviewFrame(frame, frame === null ? null : 'item-1')
-    })
-    render(
-      <DopesheetEditor
-        itemId="item-1"
-        keyframesByProperty={{ x: [] }}
-        currentFrame={10}
-        frameViewport={{ startFrame: 0, endFrame: 100 }}
-        width={640}
-        height={240}
-        onScrub={() => {}}
-        onScrubEnd={() => usePlaybackStore.getState().setPreviewFrame(null)}
-        onSkim={onSkim}
-      />,
-    )
-
-    const ruler = screen.getByTestId('dopesheet-ruler')
-    const skim = screen.getByTestId('timeline-preview-scrubber')
-
-    act(() => usePlaybackStore.getState().setPreviewFrame(40, 'item-1'))
-    expect(skim.style.display).toBe('')
-
-    fireEvent.pointerDown(ruler, { button: 0, pointerId: 3, clientX: 196 })
-    expect(skim.style.display).toBe('none')
-
-    fireEvent.pointerMove(ruler, { pointerId: 3, clientX: 220 })
-    expect(skim.style.display).toBe('none')
-
-    fireEvent.pointerUp(ruler, { pointerId: 3, clientX: 220 })
-    expect(skim.style.display).toBe('none')
-
-    fireEvent.pointerMove(ruler, { pointerId: 4, clientX: 240 })
-    expect(onSkim).toHaveBeenLastCalledWith(expect.any(Number))
-    expect(skim.style.display).toBe('')
   })
 
   it('keeps the navigator in the right viewport column', () => {

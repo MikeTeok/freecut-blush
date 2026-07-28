@@ -13,6 +13,9 @@ import {
   AlignEndHorizontal,
   Palette,
   WandSparkles,
+  Bookmark,
+  Trash2,
+  Plus,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
@@ -24,6 +27,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import type { TextItem, TextSpan, TimelineItem } from '@/types/timeline'
+import type { TextStyleFields } from '@/types/text'
 import type { CanvasSettings } from '@/types/transform'
 import { useTimelineStore } from '@/features/editor/deps/timeline-store'
 import { useGizmoStore, type ItemPropertiesPreview } from '@/features/editor/deps/preview'
@@ -58,6 +62,7 @@ import {
   getTextItemLayoutMode,
   type TextLayoutMode,
 } from '@/shared/utils/text-layout-drafts'
+import { useTextTemplatesStore, type TextTemplate } from '@/shared/state/text-templates'
 
 const FONT_WEIGHT_OPTIONS = [
   { value: 'normal', labelKey: 'regular' },
@@ -76,6 +81,26 @@ const EMPTY_TEXT_SHADOW: NonNullable<TextItem['textShadow']> = {
 const EMPTY_TEXT_STROKE: NonNullable<TextItem['stroke']> = {
   width: 0,
   color: '#111827',
+}
+
+function extractTextStyle(item: TextItem): TextStyleFields {
+  return {
+    fontSize: item.fontSize,
+    fontFamily: item.fontFamily,
+    fontWeight: item.fontWeight,
+    fontStyle: item.fontStyle,
+    underline: item.underline,
+    color: item.color,
+    letterSpacing: item.letterSpacing,
+    backgroundColor: item.backgroundColor,
+    backgroundRadius: item.backgroundRadius,
+    textAlign: item.textAlign,
+    verticalAlign: item.verticalAlign,
+    lineHeight: item.lineHeight,
+    textPadding: item.textPadding,
+    textShadow: item.textShadow,
+    stroke: item.stroke,
+  }
 }
 
 const TEXT_EFFECT_PRESETS = [
@@ -1111,6 +1136,44 @@ function TextSectionComposer({ items, canvas, slots }: TextSectionComposerProps)
     [canvas, finalizePreviewChange, textItems, updateItem],
   )
 
+  const templates = useTextTemplatesStore((s) => s.templates)
+  const addTemplate = useTextTemplatesStore((s) => s.addTemplate)
+  const removeTemplate = useTextTemplatesStore((s) => s.removeTemplate)
+
+  const handleSaveTemplate = useCallback(() => {
+    const item = firstTextItem
+    if (!item) return
+    const name = window.prompt('Template name')
+    if (!name?.trim()) return
+    addTemplate(name.trim(), extractTextStyle(item))
+    finalizePreviewChange()
+  }, [addTemplate, firstTextItem, finalizePreviewChange])
+
+  const handleApplyTemplate = useCallback(
+    (template: TextTemplate) => {
+      const updates: Partial<TextItem> = {
+        fontSize: template.fontSize,
+        fontFamily: template.fontFamily,
+        fontWeight: template.fontWeight,
+        fontStyle: template.fontStyle,
+        underline: template.underline,
+        color: template.color,
+        letterSpacing: template.letterSpacing,
+        backgroundColor: template.backgroundColor,
+        backgroundRadius: template.backgroundRadius,
+        textAlign: template.textAlign,
+        verticalAlign: template.verticalAlign,
+        lineHeight: template.lineHeight,
+        textPadding: template.textPadding,
+        textShadow: template.textShadow,
+        stroke: template.stroke,
+      }
+      updateTextItems(updates)
+      finalizePreviewChange()
+    },
+    [updateTextItems, finalizePreviewChange],
+  )
+
   if (textItems.length === 0 || !sharedValues) {
     return null
   }
@@ -1753,6 +1816,49 @@ function TextSectionComposer({ items, canvas, slots }: TextSectionComposerProps)
               allowAlpha
             />
           )}
+
+          <div className="h-px bg-border my-3" />
+
+          <PropertyRow label={t('editor.textSection.templates')}>
+            <div className="flex flex-col w-full gap-1.5">
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-7 text-[11px]"
+                onClick={handleSaveTemplate}
+              >
+                <Plus className="w-3 h-3 mr-1" />
+                {t('editor.textSection.saveTemplate')}
+              </Button>
+              {templates.length > 0 && (
+                <div className="flex flex-col gap-1">
+                  {templates.map((tmpl) => (
+                    <div
+                      key={tmpl.id}
+                      className="group flex items-center gap-1 rounded-md border border-border/50 px-2 py-1 hover:bg-accent/50 cursor-pointer"
+                      onClick={() => handleApplyTemplate(tmpl)}
+                      title={t('editor.textSection.applyTemplate')}
+                    >
+                      <Bookmark className="w-3 h-3 shrink-0 text-muted-foreground" />
+                      <span className="flex-1 truncate text-[11px]">{tmpl.name}</span>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-5 w-5 opacity-0 group-hover:opacity-100 shrink-0"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          removeTemplate(tmpl.id)
+                        }}
+                        title={t('editor.textSection.deleteTemplate')}
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </PropertyRow>
         </PropertySection>
       )}
 
