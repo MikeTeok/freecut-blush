@@ -13,7 +13,6 @@ Browser-based multi-track video editor. React 19 + TypeScript + Vite.
 
 ## Git
 
-- `main` — production, `staging` — pre-release integration, `develop` — active development
-- Commit work straight to `develop` — do **not** cut feature branches
-- PR target: `staging` (`develop` PRs into `staging`; `staging` is promoted to `main`). Do **not** open PRs against `main` directly
+- All work goes straight to `main` — no feature branches, no staging/develop workflow
+- Push directly to `main` after committing
 - Conventional commits — `type(scope): description` (e.g. `fix(timeline):`, `feat(export):`)
