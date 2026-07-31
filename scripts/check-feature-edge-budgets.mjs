@@ -21,8 +21,10 @@ const EDGE_BUDGETS = [
   { edge: 'preview -> player', maxImports: 2, maxFiles: 2 },
   // Raised for the on-device transcription + caption feature: the timeline
   // transcript editor / auto-captions and the media-library Parakeet/Whisper
-  // pipeline now interoperate through more deps/ adapter contracts.
-  { edge: 'timeline -> media-library', maxImports: 16, maxFiles: 7 },
+  // pipeline now interoperate through more deps/ adapter contracts. Re-baselined
+  // again for the SRT/VTT subtitle import feature, which adds a caption-items
+  // adapter contract.
+  { edge: 'timeline -> media-library', maxImports: 17, maxFiles: 8 },
   // Raised for the multi-timeline sequences + compositions feature: the media
   // library's compositions/sequences section reaches the sequences store,
   // composition-navigation store and cycle guard through deps/ adapters.
