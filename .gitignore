@@ -84,6 +84,7 @@ tmp-workspace/
 /waveform-bin/
 
 *.lock
+*.af~lock~
 plans/
 
 .compound-engineering/*.local.yaml
