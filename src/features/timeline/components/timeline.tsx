@@ -52,8 +52,13 @@ import {
   isExternalTimelineDragEvent,
 } from '../utils/timeline-external-drag'
 import { getDefaultActiveTrackId } from '../utils/default-active-track'
-import { KeyframeGraphPanel } from './keyframe-graph-panel'
+import {
+  KeyframeGraphPanel,
+  KEYFRAME_PANEL_PLACEMENT_STORAGE_KEY,
+  type KeyframePanelPlacement,
+} from './keyframe-graph-panel'
 import { createRafCoalescedCallback } from '../utils/raf-coalesced-callback'
+import { cn } from '@/shared/ui/cn'
 
 const logger = createLogger('Timeline')
 
@@ -133,6 +138,27 @@ export const Timeline = memo(function Timeline({ duration }: TimelineProps) {
   const keyframePanelOpen = useSelectionStore((s) => s.editKeyframePanelOpen)
   const setKeyframePanelOpen = useSelectionStore((s) => s.setEditKeyframePanelOpen)
   const hasTrackSections = videoTracks.length > 0 && audioTracks.length > 0
+
+  // Where the keyframe panel sits relative to the timeline (below vs to the
+  // right). Persisted globally so the preference survives reloads.
+  const [keyframePanelPlacement, setKeyframePanelPlacement] = useState<KeyframePanelPlacement>(
+    () => {
+      try {
+        const value = localStorage.getItem(KEYFRAME_PANEL_PLACEMENT_STORAGE_KEY)
+        return value === 'side' ? 'side' : 'bottom'
+      } catch {
+        return 'bottom'
+      }
+    },
+  )
+  const handleKeyframePanelPlacementChange = useCallback((placement: KeyframePanelPlacement) => {
+    setKeyframePanelPlacement(placement)
+    try {
+      localStorage.setItem(KEYFRAME_PANEL_PLACEMENT_STORAGE_KEY, placement)
+    } catch {
+      // ignore localStorage write errors
+    }
+  }, [])
 
   // Refs for syncing scroll between track headers and timeline content
   const trackHeadersViewportRef = useRef<HTMLDivElement>(null)
@@ -908,200 +934,210 @@ export const Timeline = memo(function Timeline({ duration }: TimelineProps) {
     </div>
   )
 
+  const isKeyframePanelSide = keyframePanelPlacement === 'side'
+
   return (
     <div
-      className="timeline-bg h-full border-t border-border flex flex-col overflow-hidden"
+      className={cn(
+        'timeline-bg h-full border-t border-border overflow-hidden',
+        isKeyframePanelSide ? 'flex' : 'flex flex-col',
+      )}
       role="region"
       aria-label={t('timeline.region')}
     >
-      {/* Timeline Header */}
-      <TimelineHeader
-        onZoomChange={zoomHandlers?.handleZoomChange}
-        onZoomIn={zoomHandlers?.handleZoomIn}
-        onZoomOut={zoomHandlers?.handleZoomOut}
-        onZoomToFit={zoomHandlers?.handleZoomToFit}
-      />
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+        {/* Timeline Header */}
+        <TimelineHeader
+          onZoomChange={zoomHandlers?.handleZoomChange}
+          onZoomIn={zoomHandlers?.handleZoomIn}
+          onZoomOut={zoomHandlers?.handleZoomOut}
+          onZoomToFit={zoomHandlers?.handleZoomToFit}
+        />
 
-      {/* Standalone-timeline (sequence) tabs — Main + top-level sequences */}
-      <SequenceTabs />
+        {/* Standalone-timeline (sequence) tabs — Main + top-level sequences */}
+        <SequenceTabs />
 
-      {/* Composition Breadcrumbs - shown when inside a sub-composition */}
-      <CompositionBreadcrumbs />
+        {/* Composition Breadcrumbs - shown when inside a sub-composition */}
+        <CompositionBreadcrumbs />
 
-      {/* Timeline Content */}
-      <div
-        className="flex-1 flex overflow-hidden min-h-0"
-        onMouseDown={handleTimelineAreaMouseDown}
-      >
-        {/* Track Headers Sidebar */}
+        {/* Timeline Content */}
         <div
-          className="border-r border-border panel-bg flex-shrink-0 flex flex-col overflow-x-hidden"
-          style={{ width: EDITOR_LAYOUT_CSS_VALUES.timelineSidebarWidth }}
+          className="flex-1 flex overflow-hidden min-h-0"
+          onMouseDown={handleTimelineAreaMouseDown}
         >
-          {/* Tracks label with controls */}
+          {/* Track Headers Sidebar */}
           <div
-            className="flex items-center justify-between px-3 border-b border-border bg-secondary/20 flex-shrink-0"
-            style={{ height: EDITOR_LAYOUT_CSS_VALUES.timelineTracksHeaderHeight }}
+            className="border-r border-border panel-bg flex-shrink-0 flex flex-col overflow-x-hidden"
+            style={{ width: EDITOR_LAYOUT_CSS_VALUES.timelineSidebarWidth }}
           >
-            {/* Track size flyout */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-6 w-6"
-                  title={t('timeline.trackSize.label')}
-                >
-                  <ActiveTrackSizeIcon className="w-3 h-3" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="min-w-[10rem]">
-                {TRACK_SIZE_OPTIONS.map((option) => {
-                  const OptionIcon = option.icon
-                  const isActive = trackSizePreset === option.id
-                  return (
-                    <DropdownMenuItem
-                      key={option.id}
-                      onSelect={() => handleSelectTrackSize(option)}
-                    >
-                      <OptionIcon className="w-4 h-4" />
-                      <span className="flex-1">{t(option.labelKey)}</span>
-                      {isActive ? <Check className="w-4 h-4" /> : null}
-                    </DropdownMenuItem>
-                  )
-                })}
-              </DropdownMenuContent>
-            </DropdownMenu>
-            <div className="flex items-center gap-1">
-              {/* Add track flyout */}
+            {/* Tracks label with controls */}
+            <div
+              className="flex items-center justify-between px-3 border-b border-border bg-secondary/20 flex-shrink-0"
+              style={{ height: EDITOR_LAYOUT_CSS_VALUES.timelineTracksHeaderHeight }}
+            >
+              {/* Track size flyout */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button
                     variant="ghost"
                     size="icon"
                     className="h-6 w-6"
-                    title={t('timeline.addTrack.label')}
+                    title={t('timeline.trackSize.label')}
                   >
-                    <Plus className="w-3 h-3" />
+                    <ActiveTrackSizeIcon className="w-3 h-3" />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="min-w-[10rem]">
-                  <DropdownMenuItem onSelect={() => addVideoTrackToTop()}>
-                    <Video className="w-4 h-4" />
-                    <span className="flex-1">{t('timeline.addTrack.video')}</span>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onSelect={() => appendAudioTrackToSection()}>
-                    <AudioLines className="w-4 h-4" />
-                    <span className="flex-1">{t('timeline.addTrack.audio')}</span>
-                  </DropdownMenuItem>
+                <DropdownMenuContent align="start" className="min-w-[10rem]">
+                  {TRACK_SIZE_OPTIONS.map((option) => {
+                    const OptionIcon = option.icon
+                    const isActive = trackSizePreset === option.id
+                    return (
+                      <DropdownMenuItem
+                        key={option.id}
+                        onSelect={() => handleSelectTrackSize(option)}
+                      >
+                        <OptionIcon className="w-4 h-4" />
+                        <span className="flex-1">{t(option.labelKey)}</span>
+                        {isActive ? <Check className="w-4 h-4" /> : null}
+                      </DropdownMenuItem>
+                    )
+                  })}
                 </DropdownMenuContent>
               </DropdownMenu>
-              {/* Remove track button */}
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-6 w-6"
-                onClick={handleRemoveTracks}
-                disabled={tracks.length === 0 || (!activeTrackId && selectedTrackIds.length === 0)}
-                title={
-                  tracks.length === 0
-                    ? t('timeline.noTracksToRemove')
-                    : !activeTrackId && selectedTrackIds.length === 0
-                      ? t('timeline.selectTrackToRemove')
-                      : selectedTrackIds.length > 0
-                        ? t('timeline.removeSelectedTracks', { count: selectedTrackIds.length })
-                        : t('timeline.removeActiveTrack')
+              <div className="flex items-center gap-1">
+                {/* Add track flyout */}
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6"
+                      title={t('timeline.addTrack.label')}
+                    >
+                      <Plus className="w-3 h-3" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="min-w-[10rem]">
+                    <DropdownMenuItem onSelect={() => addVideoTrackToTop()}>
+                      <Video className="w-4 h-4" />
+                      <span className="flex-1">{t('timeline.addTrack.video')}</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onSelect={() => appendAudioTrackToSection()}>
+                      <AudioLines className="w-4 h-4" />
+                      <span className="flex-1">{t('timeline.addTrack.audio')}</span>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+                {/* Remove track button */}
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-6 w-6"
+                  onClick={handleRemoveTracks}
+                  disabled={
+                    tracks.length === 0 || (!activeTrackId && selectedTrackIds.length === 0)
+                  }
+                  title={
+                    tracks.length === 0
+                      ? t('timeline.noTracksToRemove')
+                      : !activeTrackId && selectedTrackIds.length === 0
+                        ? t('timeline.selectTrackToRemove')
+                        : selectedTrackIds.length > 0
+                          ? t('timeline.removeSelectedTracks', { count: selectedTrackIds.length })
+                          : t('timeline.removeActiveTrack')
+                  }
+                >
+                  <Minus className="w-3 h-3" />
+                </Button>
+              </div>
+            </div>
+
+            {/* Track labels - synced scroll (no scrollbar) */}
+            <div ref={trackHeadersViewportRef} className="flex-1 overflow-hidden relative">
+              <div
+                ref={trackHeadersRootRef}
+                className="flex h-full min-h-0 flex-col"
+                style={
+                  {
+                    '--timeline-video-pane-height': `${videoPaneHeight}px`,
+                    '--timeline-audio-pane-height': `${audioPaneHeight}px`,
+                    '--timeline-video-zone-height': `${videoZoneHeight}px`,
+                    '--timeline-audio-zone-height': `${audioZoneHeight}px`,
+                  } as React.CSSProperties
                 }
               >
-                <Minus className="w-3 h-3" />
-              </Button>
+                {hasTrackSections ? (
+                  <>
+                    {renderTrackHeadersSection(videoTracks, {
+                      section: 'video',
+                      height: videoPaneHeight,
+                      zoneHeight: videoZoneHeight,
+                      scrollRef: videoTrackHeadersScrollRef,
+                      dropIndicatorLocalIndex: videoDropIndicatorIndex,
+                      firstTrackFrame: 'with-top-divider',
+                    })}
+                    <TrackSectionDivider onMouseDown={handleSectionDividerMouseDown} />
+                    {renderTrackHeadersSection(audioTracks, {
+                      section: 'audio',
+                      height: audioPaneHeight,
+                      zoneHeight: audioZoneHeight,
+                      scrollRef: audioTrackHeadersScrollRef,
+                      dropIndicatorLocalIndex: audioDropIndicatorIndex,
+                      firstTrackFrame: 'regular',
+                    })}
+                  </>
+                ) : (
+                  renderTrackHeadersSection(singleSectionTracks, {
+                    section: singleSectionKind,
+                    height: singleSectionHeight,
+                    zoneHeight: singleSectionZoneHeight,
+                    scrollRef: allTrackHeadersScrollRef,
+                    dropIndicatorLocalIndex: singleDropIndicatorIndex,
+                    firstTrackFrame: 'with-top-divider',
+                  })
+                )}
+              </div>
             </div>
           </div>
 
-          {/* Track labels - synced scroll (no scrollbar) */}
-          <div ref={trackHeadersViewportRef} className="flex-1 overflow-hidden relative">
-            <div
-              ref={trackHeadersRootRef}
-              className="flex h-full min-h-0 flex-col"
-              style={
-                {
-                  '--timeline-video-pane-height': `${videoPaneHeight}px`,
-                  '--timeline-audio-pane-height': `${audioPaneHeight}px`,
-                  '--timeline-video-zone-height': `${videoZoneHeight}px`,
-                  '--timeline-audio-zone-height': `${audioZoneHeight}px`,
-                } as React.CSSProperties
-              }
-            >
-              {hasTrackSections ? (
-                <>
-                  {renderTrackHeadersSection(videoTracks, {
-                    section: 'video',
-                    height: videoPaneHeight,
-                    zoneHeight: videoZoneHeight,
-                    scrollRef: videoTrackHeadersScrollRef,
-                    dropIndicatorLocalIndex: videoDropIndicatorIndex,
-                    firstTrackFrame: 'with-top-divider',
-                  })}
-                  <TrackSectionDivider onMouseDown={handleSectionDividerMouseDown} />
-                  {renderTrackHeadersSection(audioTracks, {
-                    section: 'audio',
-                    height: audioPaneHeight,
-                    zoneHeight: audioZoneHeight,
-                    scrollRef: audioTrackHeadersScrollRef,
-                    dropIndicatorLocalIndex: audioDropIndicatorIndex,
-                    firstTrackFrame: 'regular',
-                  })}
-                </>
-              ) : (
-                renderTrackHeadersSection(singleSectionTracks, {
-                  section: singleSectionKind,
-                  height: singleSectionHeight,
-                  zoneHeight: singleSectionZoneHeight,
-                  scrollRef: allTrackHeadersScrollRef,
-                  dropIndicatorLocalIndex: singleDropIndicatorIndex,
-                  firstTrackFrame: 'with-top-divider',
-                })
-              )}
-            </div>
-          </div>
+          {/* Timeline Canvas */}
+          <TimelineContent
+            duration={duration}
+            tracks={visibleTracks}
+            scrollRef={timelineContentRef}
+            allTracksScrollRef={allTrackContentScrollRef}
+            videoTracksScrollRef={videoTrackContentScrollRef}
+            audioTracksScrollRef={audioTrackContentScrollRef}
+            videoPaneHeight={videoPaneHeight}
+            audioPaneHeight={audioPaneHeight}
+            onSectionDividerMouseDown={hasTrackSections ? handleSectionDividerMouseDown : undefined}
+            onZoomHandlersReady={setZoomHandlers}
+            onMetricsChange={setTimelineMetrics}
+          />
         </div>
 
-        {/* Timeline Canvas */}
-        <TimelineContent
-          duration={duration}
-          tracks={visibleTracks}
-          scrollRef={timelineContentRef}
-          allTracksScrollRef={allTrackContentScrollRef}
-          videoTracksScrollRef={videoTrackContentScrollRef}
-          audioTracksScrollRef={audioTrackContentScrollRef}
-          videoPaneHeight={videoPaneHeight}
-          audioPaneHeight={audioPaneHeight}
-          onSectionDividerMouseDown={hasTrackSections ? handleSectionDividerMouseDown : undefined}
-          onZoomHandlersReady={setZoomHandlers}
-          onMetricsChange={setTimelineMetrics}
-        />
-      </div>
-
-      <div className="flex flex-shrink-0 overflow-hidden">
-        <div
-          className="border-r border-border panel-bg flex-shrink-0"
-          style={{ width: EDITOR_LAYOUT_CSS_VALUES.timelineSidebarWidth }}
-        />
-        <div className="flex-1 min-w-0">
-          <TimelineNavigator
-            actualDuration={timelineMetrics.actualDuration}
-            timelineWidth={timelineMetrics.timelineWidth}
-            scrollContainerRef={timelineContentRef}
+        <div className="flex flex-shrink-0 overflow-hidden">
+          <div
+            className="border-r border-border panel-bg flex-shrink-0"
+            style={{ width: EDITOR_LAYOUT_CSS_VALUES.timelineSidebarWidth }}
           />
+          <div className="flex-1 min-w-0">
+            <TimelineNavigator
+              actualDuration={timelineMetrics.actualDuration}
+              timelineWidth={timelineMetrics.timelineWidth}
+              scrollContainerRef={timelineContentRef}
+            />
+          </div>
         </div>
       </div>
       <KeyframeGraphPanel
         isOpen={keyframePanelOpen}
-        placement="bottom"
+        placement={keyframePanelPlacement}
         surface="edit"
         propertyColumnWidth={editorLayout.timelineSidebarWidth - 1}
         timelineScrollContainerRef={timelineContentRef}
         onClose={() => setKeyframePanelOpen(false)}
+        onPlacementChange={handleKeyframePanelPlacementChange}
       />
       <TransitionDragTooltip />
     </div>

@@ -18,7 +18,7 @@ import {
 import { useTranslation } from 'react-i18next'
 import type { TFunction } from 'i18next'
 import { useHotkeys } from 'react-hotkeys-hook'
-import { Maximize2, Minimize2, X } from 'lucide-react'
+import { Maximize2, Minimize2, PanelBottom, PanelRight, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { useShallow } from 'zustand/react/shallow'
 import { cn } from '@/shared/ui/cn'
@@ -109,8 +109,29 @@ import {
 /** Height of the panel header bar in pixels */
 const GRAPH_PANEL_HEADER_HEIGHT = 32
 
+/** Height of the slim placement-toggle strip shown by the Edit timeline panel */
+const EDIT_PANEL_STRIP_HEIGHT = 24
+
 /** Height of the resize handle in pixels */
 const RESIZE_HANDLE_HEIGHT = 6
+
+/** Default width of the panel when docked to the side of the timeline */
+const SIDE_PANEL_DEFAULT_WIDTH = 320
+
+/** Minimum width of the side-docked panel */
+const SIDE_PANEL_MIN_WIDTH = 240
+
+/** Maximum share of the parent width the side-docked panel may occupy */
+const SIDE_PANEL_MAX_RATIO = 0.5
+
+/**
+ * Where the timeline keyframe panel sits relative to the timeline. `bottom`
+ * stacks it below the timeline (classic layout); `side` docks it to the right.
+ */
+export type KeyframePanelPlacement = 'bottom' | 'side'
+
+/** localStorage key persisting the Edit workspace keyframe panel placement. */
+export const KEYFRAME_PANEL_PLACEMENT_STORAGE_KEY = 'timeline:keyframePanelPlacement'
 
 /** Default ratio of parent height for the graph content area */
 const DEFAULT_PARENT_RATIO = 0.6
@@ -153,6 +174,8 @@ interface KeyframeGraphPanelProps {
   propertyColumnWidth?: number
   /** Main Edit timeline scroll surface shared by the docked keyframe ruler. */
   timelineScrollContainerRef?: RefObject<HTMLDivElement | null>
+  /** The Edit workspace asks the timeline to move this panel above/beside it. */
+  onPlacementChange?: (placement: KeyframePanelPlacement) => void
 }
 
 type KeyframeEditorMode = 'graph' | 'dopesheet' | 'split'
@@ -1217,6 +1240,7 @@ export const KeyframeGraphPanel = memo(function KeyframeGraphPanel({
   initialVisibleGroupIds,
   propertyColumnWidth,
   timelineScrollContainerRef,
+  onPlacementChange,
 }: KeyframeGraphPanelProps) {
   perfMarkRender('KeyframeGraphPanel')
   const { t } = useTranslation()
@@ -1234,6 +1258,7 @@ export const KeyframeGraphPanel = memo(function KeyframeGraphPanel({
   const panelRef = useRef<HTMLDivElement>(null)
   const [containerWidth, setContainerWidth] = useState(0)
   const [parentHeight, setParentHeight] = useState(0)
+  const [parentWidth, setParentWidth] = useState(0)
   const hasInitialSized = useRef(false)
 
   // Track content height (user can resize)
@@ -1241,7 +1266,7 @@ export const KeyframeGraphPanel = memo(function KeyframeGraphPanel({
 
   // Edit's classic sheet has no redundant title bar; its timeline toolbar and
   // clip diamond already own panel visibility.
-  const panelHeaderHeight = surface === 'edit' ? 0 : GRAPH_PANEL_HEADER_HEIGHT
+  const panelHeaderHeight = surface === 'edit' ? EDIT_PANEL_STRIP_HEIGHT : GRAPH_PANEL_HEADER_HEIGHT
   const chrome = panelHeaderHeight + RESIZE_HANDLE_HEIGHT
   const maxParentRatio = surface === 'edit' ? 0.65 : MAX_PARENT_RATIO
   const defaultParentRatio = surface === 'edit' ? 0.38 : DEFAULT_PARENT_RATIO
@@ -1249,6 +1274,12 @@ export const KeyframeGraphPanel = memo(function KeyframeGraphPanel({
     parentHeight > 0
       ? Math.max(MIN_CONTENT_HEIGHT, Math.floor(parentHeight * maxParentRatio) - chrome)
       : MAX_CONTENT_HEIGHT_FALLBACK
+
+  // Side-docked panels remember their width across placements/remounts.
+  const [contentWidth, setContentWidth] = useState(SIDE_PANEL_DEFAULT_WIDTH)
+  const [isWidthResizing, setIsWidthResizing] = useState(false)
+  const widthResizeStartX = useRef(0)
+  const widthResizeStartWidth = useRef(0)
 
   // Set default height to 60% of parent on first measurement
   useEffect(() => {
@@ -1291,12 +1322,48 @@ export const KeyframeGraphPanel = memo(function KeyframeGraphPanel({
     const parent = panel?.parentElement
     if (!parent) return
 
-    const update = () => setParentHeight(parent.clientHeight)
+    const update = () => {
+      setParentHeight(parent.clientHeight)
+      setParentWidth(parent.clientWidth)
+    }
     update()
     const observer = new ResizeObserver(update)
     observer.observe(parent)
     return () => observer.disconnect()
   }, [isOpen])
+
+  // Handle side-panel width resize
+  const handleWidthResizeStart = useCallback(
+    (e: React.MouseEvent) => {
+      e.preventDefault()
+      e.stopPropagation()
+      setIsWidthResizing(true)
+      widthResizeStartX.current = e.clientX
+      widthResizeStartWidth.current = contentWidth
+    },
+    [contentWidth],
+  )
+
+  useEffect(() => {
+    if (!isWidthResizing) return
+
+    const maxWidth = Math.max(SIDE_PANEL_MIN_WIDTH, Math.floor(parentWidth * SIDE_PANEL_MAX_RATIO))
+    const handleMouseMove = (e: MouseEvent) => {
+      const deltaX = widthResizeStartX.current - e.clientX
+      const newWidth = Math.min(
+        maxWidth,
+        Math.max(SIDE_PANEL_MIN_WIDTH, widthResizeStartWidth.current + deltaX),
+      )
+      setContentWidth(newWidth)
+    }
+    const handleMouseUp = () => setIsWidthResizing(false)
+    document.addEventListener('mousemove', handleMouseMove)
+    document.addEventListener('mouseup', handleMouseUp)
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove)
+      document.removeEventListener('mouseup', handleMouseUp)
+    }
+  }, [isWidthResizing, parentWidth])
 
   // Handle resize drag
   const handleResizeStart = useCallback(
@@ -3318,6 +3385,7 @@ export const KeyframeGraphPanel = memo(function KeyframeGraphPanel({
   )
 
   const isSidePlacement = placement === 'side'
+  const sideResizable = isSidePlacement && surface === 'edit'
 
   // Clamp content height when max shrinks (e.g. parent resized smaller)
   const clampedContentHeight = Math.min(contentHeight, maxContentHeight)
@@ -3359,6 +3427,67 @@ export const KeyframeGraphPanel = memo(function KeyframeGraphPanel({
     </div>
   )
 
+  const sideResizeHandle =
+    isSidePlacement && surface === 'edit' ? (
+      <div
+        data-resize-handle
+        className={cn(
+          'w-1.5 cursor-ew-resize flex-shrink-0 flex items-center justify-center',
+          'bg-secondary/30 hover:bg-primary/30 transition-colors',
+          isWidthResizing && 'bg-primary/50',
+        )}
+        onMouseDown={handleWidthResizeStart}
+      >
+        <div className="h-8 w-0.5 rounded-full bg-muted-foreground/30" />
+      </div>
+    ) : null
+
+  const placementToggle =
+    surface === 'edit' && onPlacementChange ? (
+      <div className="flex h-5 items-center gap-0.5 rounded-md border border-border/70 bg-background/80 px-0.5">
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className={cn(
+            'h-4 w-5 px-0 text-muted-foreground hover:text-foreground',
+            !isSidePlacement && 'bg-secondary text-foreground',
+          )}
+          onClick={() => onPlacementChange('bottom')}
+          aria-pressed={!isSidePlacement}
+          title={t('timeline.keyframeEditor.dockBelow')}
+          aria-label={t('timeline.keyframeEditor.dockBelow')}
+        >
+          <PanelBottom className="h-3 w-3" />
+        </Button>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className={cn(
+            'h-4 w-5 px-0 text-muted-foreground hover:text-foreground',
+            isSidePlacement && 'bg-secondary text-foreground',
+          )}
+          onClick={() => onPlacementChange('side')}
+          aria-pressed={isSidePlacement}
+          title={t('timeline.keyframeEditor.dockRight')}
+          aria-label={t('timeline.keyframeEditor.dockRight')}
+        >
+          <PanelRight className="h-3 w-3" />
+        </Button>
+      </div>
+    ) : null
+
+  const editPlacementStrip =
+    surface === 'edit' && placementToggle ? (
+      <div className="h-6 flex flex-shrink-0 items-center justify-between border-b border-border bg-secondary/20 px-1">
+        <span className="text-[10px] font-medium text-muted-foreground">
+          {t('timeline.keyframeEditor.title')}
+        </span>
+        {placementToggle}
+      </div>
+    ) : null
+
   return (
     <div
       ref={panelRef}
@@ -3391,305 +3520,322 @@ export const KeyframeGraphPanel = memo(function KeyframeGraphPanel({
       }}
       className={cn(
         'flex-shrink-0 bg-background overflow-hidden outline-none',
-        isSidePlacement
-          ? 'flex h-full min-h-0 flex-col border-0'
-          : placement === 'top'
-            ? 'border-b border-border'
-            : 'border-t border-border',
+        isSidePlacement ? 'flex h-full min-h-0 border-0' : 'flex flex-col',
+        placement === 'top' ? 'border-b border-border' : 'border-t border-border',
         isOpen ? 'opacity-100' : 'opacity-90',
         !isSidePlacement && !isResizing && 'transition-all duration-200',
       )}
-      style={isSidePlacement ? undefined : { height: panelHeight }}
+      style={
+        isSidePlacement
+          ? sideResizable
+            ? { width: contentWidth }
+            : undefined
+          : { height: panelHeight }
+      }
     >
-      {placement === 'bottom' && resizeHandle}
+      {isSidePlacement && sideResizeHandle}
 
-      {surface !== 'edit' && (
-        <div className="h-8 flex items-center justify-between px-3 bg-secondary/30 border-b border-border">
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-medium text-muted-foreground">
-              {surface === 'motion'
-                ? t('editor.compose.motionCurves')
-                : t('timeline.keyframeEditor.title')}
-              {selectedItemForEditor && (
-                <span className="ml-2 text-foreground">
-                  - {selectedItemForEditor.label || selectedItemForEditor.type}
-                  <span className="ml-1 text-muted-foreground">
-                    ({selectedItemForEditor.id.slice(0, 8)})
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+        {placement === 'bottom' && resizeHandle}
+        {editPlacementStrip}
+
+        {surface !== 'edit' && (
+          <div className="h-8 flex items-center justify-between px-3 bg-secondary/30 border-b border-border">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-medium text-muted-foreground">
+                {surface === 'motion'
+                  ? t('editor.compose.motionCurves')
+                  : t('timeline.keyframeEditor.title')}
+                {selectedItemForEditor && (
+                  <span className="ml-2 text-foreground">
+                    - {selectedItemForEditor.label || selectedItemForEditor.type}
+                    <span className="ml-1 text-muted-foreground">
+                      ({selectedItemForEditor.id.slice(0, 8)})
+                    </span>
                   </span>
-                </span>
-              )}
-            </span>
-          </div>
+                )}
+              </span>
+            </div>
 
-          <div
-            className={cn(
-              'flex items-center gap-0.5',
-              surface === 'default' && 'rounded-md border border-border/60 bg-background/50 p-0.5',
-            )}
-            role={surface === 'default' ? 'tablist' : undefined}
-            aria-label={
-              surface === 'motion'
-                ? t('editor.compose.motionCurves')
-                : t('timeline.keyframeEditor.title')
-            }
-          >
-            {surface === 'default' && (
-              <>
-                <Button
-                  variant={effectiveEditorMode === 'dopesheet' ? 'secondary' : 'ghost'}
-                  size="sm"
-                  className="h-6 px-2 text-[11px]"
-                  role="tab"
-                  aria-selected={effectiveEditorMode === 'dopesheet'}
-                  title={t('timeline.keyframeEditor.legend.sheetMode')}
-                  aria-label={t('timeline.keyframeEditor.legend.sheetMode')}
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    setEditorMode('dopesheet')
-                  }}
-                >
-                  {t('timeline.keyframeEditor.sheet')}
-                </Button>
-                <Button
-                  variant={effectiveEditorMode === 'graph' ? 'secondary' : 'ghost'}
-                  size="sm"
-                  className="h-6 px-2 text-[11px]"
-                  role="tab"
-                  aria-selected={effectiveEditorMode === 'graph'}
-                  title={t('timeline.keyframeEditor.legend.graphMode')}
-                  aria-label={t('timeline.keyframeEditor.legend.graphMode')}
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    setEditorMode('graph')
-                  }}
-                >
-                  {t('timeline.keyframeEditor.graph')}
-                </Button>
-                {splitView && (
+            <div
+              className={cn(
+                'flex items-center gap-0.5',
+                surface === 'default' &&
+                  'rounded-md border border-border/60 bg-background/50 p-0.5',
+              )}
+              role={surface === 'default' ? 'tablist' : undefined}
+              aria-label={
+                surface === 'motion'
+                  ? t('editor.compose.motionCurves')
+                  : t('timeline.keyframeEditor.title')
+              }
+            >
+              {surface === 'default' && (
+                <>
                   <Button
-                    variant={effectiveEditorMode === 'split' ? 'secondary' : 'ghost'}
+                    variant={effectiveEditorMode === 'dopesheet' ? 'secondary' : 'ghost'}
                     size="sm"
                     className="h-6 px-2 text-[11px]"
                     role="tab"
-                    aria-selected={effectiveEditorMode === 'split'}
-                    title={t('timeline.keyframeEditor.split')}
-                    aria-label={t('timeline.keyframeEditor.split')}
+                    aria-selected={effectiveEditorMode === 'dopesheet'}
+                    title={t('timeline.keyframeEditor.legend.sheetMode')}
+                    aria-label={t('timeline.keyframeEditor.legend.sheetMode')}
                     onClick={(e) => {
                       e.stopPropagation()
-                      setEditorMode('split')
+                      setEditorMode('dopesheet')
                     }}
                   >
-                    {t('timeline.keyframeEditor.split')}
+                    {t('timeline.keyframeEditor.sheet')}
                   </Button>
-                )}
+                  <Button
+                    variant={effectiveEditorMode === 'graph' ? 'secondary' : 'ghost'}
+                    size="sm"
+                    className="h-6 px-2 text-[11px]"
+                    role="tab"
+                    aria-selected={effectiveEditorMode === 'graph'}
+                    title={t('timeline.keyframeEditor.legend.graphMode')}
+                    aria-label={t('timeline.keyframeEditor.legend.graphMode')}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setEditorMode('graph')
+                    }}
+                  >
+                    {t('timeline.keyframeEditor.graph')}
+                  </Button>
+                  {splitView && (
+                    <Button
+                      variant={effectiveEditorMode === 'split' ? 'secondary' : 'ghost'}
+                      size="sm"
+                      className="h-6 px-2 text-[11px]"
+                      role="tab"
+                      aria-selected={effectiveEditorMode === 'split'}
+                      title={t('timeline.keyframeEditor.split')}
+                      aria-label={t('timeline.keyframeEditor.split')}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setEditorMode('split')
+                      }}
+                    >
+                      {t('timeline.keyframeEditor.split')}
+                    </Button>
+                  )}
+                </>
+              )}
+              {onFocusModeChange && (
+                <Button
+                  variant={isFocusMode ? 'secondary' : 'ghost'}
+                  size="icon"
+                  className="ml-0.5 h-6 w-6 p-0"
+                  title={t(
+                    isFocusMode
+                      ? 'timeline.keyframeEditor.exitFocusMode'
+                      : 'timeline.keyframeEditor.enterFocusMode',
+                  )}
+                  aria-label={t(
+                    isFocusMode
+                      ? 'timeline.keyframeEditor.exitFocusMode'
+                      : 'timeline.keyframeEditor.enterFocusMode',
+                  )}
+                  aria-pressed={isFocusMode}
+                  onClick={(event) => {
+                    event.stopPropagation()
+                    onFocusModeChange(!isFocusMode)
+                  }}
+                >
+                  {isFocusMode ? (
+                    <Minimize2 className="h-3 w-3" />
+                  ) : (
+                    <Maximize2 className="h-3 w-3" />
+                  )}
+                </Button>
+              )}
+              {showCloseButton && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-5 w-5 p-0"
+                  aria-label={t('common.close')}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    onClose()
+                  }}
+                >
+                  <X className="w-3 h-3" />
+                </Button>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Keyframe editor content */}
+        {isOpen && (
+          <div
+            ref={containerRef}
+            className={cn(
+              'min-h-0',
+              surface === 'edit' ? 'p-0' : 'p-2',
+              isSidePlacement && 'flex-1',
+            )}
+            style={isSidePlacement ? undefined : { height: clampedContentHeight }}
+          >
+            {selectedItemForEditor && containerWidth > 0 ? (
+              <>
+                <ErrorBoundary level="component">
+                  <DopesheetEditor
+                    itemId={selectedItemForEditor.id}
+                    motionModifiers={selectedItemForEditor.motionModifiers}
+                    textMotionBands={editTextMotionBands}
+                    onTextMotionDurationDragStart={handleTextMotionDurationDragStart}
+                    onTextMotionDurationCommit={handleTextMotionDurationCommit}
+                    onTextMotionDurationCancel={handleTextMotionDurationCancel}
+                    onTextMotionOffsetDragStart={handleTextMotionOffsetDragStart}
+                    onTextMotionOffsetCommit={handleTextMotionOffsetCommit}
+                    onTextMotionOffsetCancel={handleTextMotionOffsetCancel}
+                    onTextMotionBandClick={handleTextMotionBandClick}
+                    hasProceduralMotion={canBakeProceduralMotion}
+                    frameViewport={editTimelineFrameViewport}
+                    clampViewportToContent={surface !== 'edit'}
+                    viewportInteractionEnabled={surface !== 'edit'}
+                    keyframesByProperty={keyframesByProperty}
+                    propertyValues={propertyValues}
+                    preExpressionPropertyValues={preExpressionPropertyValues}
+                    propertyLinks={getDirectPropertyLinks(selectedItemKeyframes ?? undefined)}
+                    propertyExpressions={selectedItemKeyframes?.expressions?.filter(
+                      (expression) => expression.type === 'expression',
+                    )}
+                    propertyLinkSourceLabels={propertyLinkSourceLabels}
+                    onPropertyLinkPointerDown={handlePropertyLinkPointerDown}
+                    onRemovePropertyLink={handleRemovePropertyLink}
+                    resolveExpressionReference={resolveExpressionReference}
+                    onSetPropertyExpression={handleSetPropertyExpression}
+                    onRemovePropertyExpression={handleRemovePropertyExpression}
+                    hiddenPropertyRows={
+                      supportsVectorTransform(selectedItemForEditor)
+                        ? hiddenVectorPropertyRows
+                        : undefined
+                    }
+                    compoundPropertyRows={compoundPropertyRows}
+                    compoundSecondaryProperties={compoundSecondaryProperties}
+                    dimensionSeparationByProperty={dimensionSeparationByProperty}
+                    axisConstraintByProperty={
+                      surface === 'edit' ? classicAxisConstraints : undefined
+                    }
+                    selectedProperty={effectiveSelectedProperty}
+                    selectedKeyframeIds={selectedKeyframeIds}
+                    currentFrame={relativeFrame}
+                    playheadFrame={
+                      surface === 'edit' ? currentFrame - selectedItemForEditor.from : undefined
+                    }
+                    playheadClampToItemBounds={surface !== 'edit'}
+                    globalFrame={currentFrame}
+                    itemFrom={selectedItemForEditor.from}
+                    totalFrames={selectedItemForEditor.durationInFrames}
+                    trimmedKeyframeCount={surface === 'edit' ? trimmedKeyframeCount : 0}
+                    onTrimAnimation={surface === 'edit' ? handleTrimAnimation : undefined}
+                    fps={surface === 'edit' ? editTimelineFps : canvas.fps}
+                    width={editorWidth}
+                    height={editorHeight}
+                    onKeyframeMove={handleKeyframeMove}
+                    onKeyframesMove={handleKeyframesMove}
+                    onBezierHandleMove={handleBezierHandleMove}
+                    onSegmentEasingChange={handleSegmentEasingChange}
+                    onSelectionChange={handleSelectionChange}
+                    onPropertyChange={handlePropertyChange}
+                    onActivePropertyChange={setSelectedProperty}
+                    onScrub={handleScrub}
+                    globalFrameToPixels={
+                      surface === 'edit' ? editTimelineGlobalFrameToPixels : undefined
+                    }
+                    timelineScrollContainerRef={
+                      surface === 'edit' ? timelineScrollContainerRef : undefined
+                    }
+                    timelinePanBaseScrollLeft={
+                      surface === 'edit' ? editTimelineScrollLeft : undefined
+                    }
+                    timelinePanBasePixelsPerSecond={
+                      surface === 'edit' ? editTimelinePixelsPerSecond : undefined
+                    }
+                    linkedTimelineViewportWidth={
+                      surface === 'edit' ? editTimelineViewportWidth : undefined
+                    }
+                    getTimelineLivePixelsPerSecond={
+                      surface === 'edit' ? getEditTimelineLivePixelsPerSecond : undefined
+                    }
+                    onRulerEdgeScroll={
+                      surface === 'edit' ? handleEditTimelineEdgeScroll : undefined
+                    }
+                    scrubClampToItemBounds={surface !== 'edit'}
+                    scrubFrameBounds={
+                      surface === 'edit'
+                        ? {
+                            minFrame: -selectedItemForEditor.from,
+                            maxFrame:
+                              Math.floor(
+                                Math.max(maxItemEndFrame / editTimelineFps, 10) * editTimelineFps,
+                              ) - selectedItemForEditor.from,
+                          }
+                        : undefined
+                    }
+                    onScrubStart={handleScrubStart}
+                    onScrubEnd={handleScrubEnd}
+                    onDragStart={handleDragStart}
+                    onDragEnd={handleDragEnd}
+                    onDragCancel={handleDragCancel}
+                    onAddKeyframe={handleAddKeyframe}
+                    onDuplicateKeyframes={handleDuplicateKeyframes}
+                    onPropertyValueCommit={handlePropertyValueCommit}
+                    onPropertyValuePreview={handlePropertyValuePreview}
+                    onResetPropertiesToDefault={handleResetPropertiesToDefault}
+                    onRemoveKeyframes={handleRemoveKeyframes}
+                    onCopyKeyframes={handleCopyKeyframes}
+                    onCutKeyframes={handleCutKeyframes}
+                    onPasteKeyframes={handlePasteKeyframes}
+                    hasKeyframeClipboard={Boolean(keyframeClipboard?.keyframes.length)}
+                    isKeyframeClipboardCut={isKeyframeClipboardCut}
+                    selectedInterpolation={selectedEditorEasing}
+                    interpolationOptions={easingOptions}
+                    onInterpolationChange={handleSelectedKeyframeEasingChange}
+                    interpolationDisabled={selectedEditorKeyframes.length === 0}
+                    onNavigateToKeyframe={handleNavigateToKeyframe}
+                    transitionBlockedRanges={transitionBlockedRanges}
+                    proceduralPreview={proceduralPreview}
+                    canBakeMotion={canBakeProceduralMotion}
+                    onBakeMotion={() => setBakeDialogOpen(true)}
+                    visualizationMode={effectiveEditorMode}
+                    presentation={surface === 'edit' ? 'classic' : undefined}
+                    graphMode={vectorGraphMode}
+                    onGraphModeChange={activeVectorRow ? setVectorGraphMode : undefined}
+                    speedGraphContent={vectorSpeedGraphContent}
+                    spacious={splitView || surface === 'motion'}
+                    inlinePropertyGroupIds={
+                      surface === 'motion' ? MOTION_INLINE_PROPERTY_GROUP_IDS : undefined
+                    }
+                    initialVisibleGroupIds={initialVisibleGroupIds}
+                    propertyColumnWidth={propertyColumnWidth}
+                    shortcutsEnabled={isPointerWithinEditor || isFocusWithinEditor}
+                    addKeyframeShortcutEnabled={surface === 'edit'}
+                    shortcuts={{
+                      addKeyframe: surface === 'edit' ? hotkeys.EDIT_KEYFRAME_ADD : '',
+                      previousKeyframe: hotkeys.KEYFRAME_PREVIOUS,
+                      nextKeyframe: hotkeys.KEYFRAME_NEXT,
+                      toggleAutoKey: hotkeys.KEYFRAME_TOGGLE_AUTO,
+                      fitKeyframes: hotkeys.KEYFRAME_FIT,
+                    }}
+                  />
+                </ErrorBoundary>
               </>
-            )}
-            {onFocusModeChange && (
-              <Button
-                variant={isFocusMode ? 'secondary' : 'ghost'}
-                size="icon"
-                className="ml-0.5 h-6 w-6 p-0"
-                title={t(
-                  isFocusMode
-                    ? 'timeline.keyframeEditor.exitFocusMode'
-                    : 'timeline.keyframeEditor.enterFocusMode',
-                )}
-                aria-label={t(
-                  isFocusMode
-                    ? 'timeline.keyframeEditor.exitFocusMode'
-                    : 'timeline.keyframeEditor.enterFocusMode',
-                )}
-                aria-pressed={isFocusMode}
-                onClick={(event) => {
-                  event.stopPropagation()
-                  onFocusModeChange(!isFocusMode)
-                }}
-              >
-                {isFocusMode ? (
-                  <Minimize2 className="h-3 w-3" />
-                ) : (
-                  <Maximize2 className="h-3 w-3" />
-                )}
-              </Button>
-            )}
-            {showCloseButton && (
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-5 w-5 p-0"
-                aria-label={t('common.close')}
-                onClick={(e) => {
-                  e.stopPropagation()
-                  onClose()
-                }}
-              >
-                <X className="w-3 h-3" />
-              </Button>
+            ) : (
+              <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
+                {selectedItemForEditor
+                  ? t('common.loading')
+                  : t('timeline.keyframeEditor.selectItem')}
+              </div>
             )}
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Keyframe editor content */}
-      {isOpen && (
-        <div
-          ref={containerRef}
-          className={cn('min-h-0', surface === 'edit' ? 'p-0' : 'p-2', isSidePlacement && 'flex-1')}
-          style={isSidePlacement ? undefined : { height: clampedContentHeight }}
-        >
-          {selectedItemForEditor && containerWidth > 0 ? (
-            <>
-              <ErrorBoundary level="component">
-                <DopesheetEditor
-                  itemId={selectedItemForEditor.id}
-                  motionModifiers={selectedItemForEditor.motionModifiers}
-                  textMotionBands={editTextMotionBands}
-                  onTextMotionDurationDragStart={handleTextMotionDurationDragStart}
-                  onTextMotionDurationCommit={handleTextMotionDurationCommit}
-                  onTextMotionDurationCancel={handleTextMotionDurationCancel}
-                  onTextMotionOffsetDragStart={handleTextMotionOffsetDragStart}
-                  onTextMotionOffsetCommit={handleTextMotionOffsetCommit}
-                  onTextMotionOffsetCancel={handleTextMotionOffsetCancel}
-                  onTextMotionBandClick={handleTextMotionBandClick}
-                  hasProceduralMotion={canBakeProceduralMotion}
-                  frameViewport={editTimelineFrameViewport}
-                  clampViewportToContent={surface !== 'edit'}
-                  viewportInteractionEnabled={surface !== 'edit'}
-                  keyframesByProperty={keyframesByProperty}
-                  propertyValues={propertyValues}
-                  preExpressionPropertyValues={preExpressionPropertyValues}
-                  propertyLinks={getDirectPropertyLinks(selectedItemKeyframes ?? undefined)}
-                  propertyExpressions={selectedItemKeyframes?.expressions?.filter(
-                    (expression) => expression.type === 'expression',
-                  )}
-                  propertyLinkSourceLabels={propertyLinkSourceLabels}
-                  onPropertyLinkPointerDown={handlePropertyLinkPointerDown}
-                  onRemovePropertyLink={handleRemovePropertyLink}
-                  resolveExpressionReference={resolveExpressionReference}
-                  onSetPropertyExpression={handleSetPropertyExpression}
-                  onRemovePropertyExpression={handleRemovePropertyExpression}
-                  hiddenPropertyRows={
-                    supportsVectorTransform(selectedItemForEditor)
-                      ? hiddenVectorPropertyRows
-                      : undefined
-                  }
-                  compoundPropertyRows={compoundPropertyRows}
-                  compoundSecondaryProperties={compoundSecondaryProperties}
-                  dimensionSeparationByProperty={dimensionSeparationByProperty}
-                  axisConstraintByProperty={surface === 'edit' ? classicAxisConstraints : undefined}
-                  selectedProperty={effectiveSelectedProperty}
-                  selectedKeyframeIds={selectedKeyframeIds}
-                  currentFrame={relativeFrame}
-                  playheadFrame={
-                    surface === 'edit' ? currentFrame - selectedItemForEditor.from : undefined
-                  }
-                  playheadClampToItemBounds={surface !== 'edit'}
-                  globalFrame={currentFrame}
-                  itemFrom={selectedItemForEditor.from}
-                  totalFrames={selectedItemForEditor.durationInFrames}
-                  trimmedKeyframeCount={surface === 'edit' ? trimmedKeyframeCount : 0}
-                  onTrimAnimation={surface === 'edit' ? handleTrimAnimation : undefined}
-                  fps={surface === 'edit' ? editTimelineFps : canvas.fps}
-                  width={editorWidth}
-                  height={editorHeight}
-                  onKeyframeMove={handleKeyframeMove}
-                  onKeyframesMove={handleKeyframesMove}
-                  onBezierHandleMove={handleBezierHandleMove}
-                  onSegmentEasingChange={handleSegmentEasingChange}
-                  onSelectionChange={handleSelectionChange}
-                  onPropertyChange={handlePropertyChange}
-                  onActivePropertyChange={setSelectedProperty}
-                  onScrub={handleScrub}
-                  globalFrameToPixels={
-                    surface === 'edit' ? editTimelineGlobalFrameToPixels : undefined
-                  }
-                  timelineScrollContainerRef={
-                    surface === 'edit' ? timelineScrollContainerRef : undefined
-                  }
-                  timelinePanBaseScrollLeft={
-                    surface === 'edit' ? editTimelineScrollLeft : undefined
-                  }
-                  timelinePanBasePixelsPerSecond={
-                    surface === 'edit' ? editTimelinePixelsPerSecond : undefined
-                  }
-                  linkedTimelineViewportWidth={
-                    surface === 'edit' ? editTimelineViewportWidth : undefined
-                  }
-                  getTimelineLivePixelsPerSecond={
-                    surface === 'edit' ? getEditTimelineLivePixelsPerSecond : undefined
-                  }
-                  onRulerEdgeScroll={surface === 'edit' ? handleEditTimelineEdgeScroll : undefined}
-                  scrubClampToItemBounds={surface !== 'edit'}
-                  scrubFrameBounds={
-                    surface === 'edit'
-                      ? {
-                          minFrame: -selectedItemForEditor.from,
-                          maxFrame:
-                            Math.floor(
-                              Math.max(maxItemEndFrame / editTimelineFps, 10) * editTimelineFps,
-                            ) - selectedItemForEditor.from,
-                        }
-                      : undefined
-                  }
-                  onScrubStart={handleScrubStart}
-                  onScrubEnd={handleScrubEnd}
-                  onDragStart={handleDragStart}
-                  onDragEnd={handleDragEnd}
-                  onDragCancel={handleDragCancel}
-                  onAddKeyframe={handleAddKeyframe}
-                  onDuplicateKeyframes={handleDuplicateKeyframes}
-                  onPropertyValueCommit={handlePropertyValueCommit}
-                  onPropertyValuePreview={handlePropertyValuePreview}
-                  onResetPropertiesToDefault={handleResetPropertiesToDefault}
-                  onRemoveKeyframes={handleRemoveKeyframes}
-                  onCopyKeyframes={handleCopyKeyframes}
-                  onCutKeyframes={handleCutKeyframes}
-                  onPasteKeyframes={handlePasteKeyframes}
-                  hasKeyframeClipboard={Boolean(keyframeClipboard?.keyframes.length)}
-                  isKeyframeClipboardCut={isKeyframeClipboardCut}
-                  selectedInterpolation={selectedEditorEasing}
-                  interpolationOptions={easingOptions}
-                  onInterpolationChange={handleSelectedKeyframeEasingChange}
-                  interpolationDisabled={selectedEditorKeyframes.length === 0}
-                  onNavigateToKeyframe={handleNavigateToKeyframe}
-                  transitionBlockedRanges={transitionBlockedRanges}
-                  proceduralPreview={proceduralPreview}
-                  canBakeMotion={canBakeProceduralMotion}
-                  onBakeMotion={() => setBakeDialogOpen(true)}
-                  visualizationMode={effectiveEditorMode}
-                  presentation={surface === 'edit' ? 'classic' : undefined}
-                  graphMode={vectorGraphMode}
-                  onGraphModeChange={activeVectorRow ? setVectorGraphMode : undefined}
-                  speedGraphContent={vectorSpeedGraphContent}
-                  spacious={splitView || surface === 'motion'}
-                  inlinePropertyGroupIds={
-                    surface === 'motion' ? MOTION_INLINE_PROPERTY_GROUP_IDS : undefined
-                  }
-                  initialVisibleGroupIds={initialVisibleGroupIds}
-                  propertyColumnWidth={propertyColumnWidth}
-                  shortcutsEnabled={isPointerWithinEditor || isFocusWithinEditor}
-                  addKeyframeShortcutEnabled={surface === 'edit'}
-                  shortcuts={{
-                    addKeyframe: surface === 'edit' ? hotkeys.EDIT_KEYFRAME_ADD : '',
-                    previousKeyframe: hotkeys.KEYFRAME_PREVIOUS,
-                    nextKeyframe: hotkeys.KEYFRAME_NEXT,
-                    toggleAutoKey: hotkeys.KEYFRAME_TOGGLE_AUTO,
-                    fitKeyframes: hotkeys.KEYFRAME_FIT,
-                  }}
-                />
-              </ErrorBoundary>
-            </>
-          ) : (
-            <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
-              {selectedItemForEditor
-                ? t('common.loading')
-                : t('timeline.keyframeEditor.selectItem')}
-            </div>
-          )}
-        </div>
-      )}
-
-      {placement === 'top' && resizeHandle}
+        {placement === 'top' && resizeHandle}
+      </div>
       {propertyLinkDrag ? <PropertyLinkPickWhipOverlay drag={propertyLinkDrag} /> : null}
       <MotionBakeConfirmationDialog
         open={bakeDialogOpen}
