@@ -12,7 +12,7 @@
  * coordinate transform system as the transform gizmo.
  */
 
-import { useCallback, useEffect, memo, useRef, useState } from 'react'
+import { useCallback, useEffect, memo, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { useMaskEditorStore } from '../stores/mask-editor-store'
 import { useGizmoStore } from '../stores/gizmo-store'
@@ -55,6 +55,7 @@ import {
 import {
   MASK_GEOMETRY_TRANSFORM_PROPS,
   cloneVertices,
+  computeKeyedVertexIndicesAtFrame,
   cubicPointAt,
   drawSelectedVertexRing,
   getNextTrackName,
@@ -206,6 +207,23 @@ export const MaskEditorOverlay = memo(function MaskEditorOverlay({
   const hoveredVertexIndex = useMaskEditorStore((s) => s.hoveredVertexIndex)
   const hoveredHandle = useMaskEditorStore((s) => s.hoveredHandle)
 
+  // Path-vertex keyframes at the current playhead, per vertex index. Matches
+  // the keyframe panel's "Vertex N" rows so edits are easy to identify.
+  const editingItem = useItemsStore(
+    useCallback(
+      (state) => (editingItemId ? state.itemById[editingItemId] : undefined),
+      [editingItemId],
+    ),
+  )
+  const editingKeyframes = useKeyframesStore((s) =>
+    editingItemId ? s.keyframesByItemId[editingItemId] : undefined,
+  )
+  const currentFrame = usePlaybackStore((s) => s.currentFrame)
+  const keyedVertexIndicesAtFrame = useMemo(() => {
+    if (!editingItem) return new Set<number>()
+    return computeKeyedVertexIndicesAtFrame(editingKeyframes, editingItem.from, currentFrame)
+  }, [currentFrame, editingItem, editingKeyframes])
+
   // Pen mode state
   const penMode = useMaskEditorStore((s) => s.penMode)
   const penVertices = useMaskEditorStore((s) => s.penVertices)
@@ -332,8 +350,7 @@ export const MaskEditorOverlay = memo(function MaskEditorOverlay({
       const currentFrame = usePlaybackStore.getState().currentFrame
       const itemKeyframes = useKeyframesStore.getState().keyframesByItemId[item.id]
       return (
-        resolveAnimatedShapeItem(item, itemKeyframes, currentFrame - item.from).pathVertices ??
-        null
+        resolveAnimatedShapeItem(item, itemKeyframes, currentFrame - item.from).pathVertices ?? null
       )
     }
     return null
@@ -403,6 +420,8 @@ export const MaskEditorOverlay = memo(function MaskEditorOverlay({
         selectedVertexIndices,
         hoveredVertexIndex,
         hoveredHandle,
+        showIndexLabel: true,
+        isKeyedAtCurrentFrame: keyedVertexIndicesAtFrame.has(i),
       })
     },
     [
@@ -413,6 +432,7 @@ export const MaskEditorOverlay = memo(function MaskEditorOverlay({
       selectedVertexIndices,
       hoveredVertexIndex,
       hoveredHandle,
+      keyedVertexIndicesAtFrame,
     ],
   )
 
@@ -1307,31 +1327,34 @@ export const MaskEditorOverlay = memo(function MaskEditorOverlay({
     }
   }, [])
 
-  const scheduleEditCommitCleanup = useCallback((expectedInteractionId?: number) => {
-    for (const id of pendingCleanupRafIdsRef.current) {
-      cancelAnimationFrame(id)
-    }
-    pendingCleanupRafIdsRef.current = []
-    const scheduledGeneration = editInteractionGenerationRef.current
+  const scheduleEditCommitCleanup = useCallback(
+    (expectedInteractionId?: number) => {
+      for (const id of pendingCleanupRafIdsRef.current) {
+        cancelAnimationFrame(id)
+      }
+      pendingCleanupRafIdsRef.current = []
+      const scheduledGeneration = editInteractionGenerationRef.current
 
-    const firstFrameId = requestAnimationFrame(() => {
-      const secondFrameId = requestAnimationFrame(() => {
-        if (editInteractionGenerationRef.current !== scheduledGeneration) return
-        pendingCleanupRafIdsRef.current = []
-        setCommittedEditSnapshot(null)
-        if (expectedInteractionId !== undefined) {
-          clearInteraction(expectedInteractionId)
-          if (maskOwnedInteractionIdRef.current === expectedInteractionId) {
-            maskOwnedInteractionIdRef.current = null
+      const firstFrameId = requestAnimationFrame(() => {
+        const secondFrameId = requestAnimationFrame(() => {
+          if (editInteractionGenerationRef.current !== scheduledGeneration) return
+          pendingCleanupRafIdsRef.current = []
+          setCommittedEditSnapshot(null)
+          if (expectedInteractionId !== undefined) {
+            clearInteraction(expectedInteractionId)
+            if (maskOwnedInteractionIdRef.current === expectedInteractionId) {
+              maskOwnedInteractionIdRef.current = null
+            }
           }
-        }
-        endDrag()
+          endDrag()
+        })
+        pendingCleanupRafIdsRef.current = [firstFrameId, secondFrameId]
       })
-      pendingCleanupRafIdsRef.current = [firstFrameId, secondFrameId]
-    })
 
-    pendingCleanupRafIdsRef.current = [firstFrameId]
-  }, [clearInteraction, endDrag])
+      pendingCleanupRafIdsRef.current = [firstFrameId]
+    },
+    [clearInteraction, endDrag],
+  )
 
   const buildMaskTransformPersistence = useCallback(
     (

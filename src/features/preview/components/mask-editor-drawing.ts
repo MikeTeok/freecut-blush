@@ -68,6 +68,10 @@ interface DrawMaskVertexWithHandlesOptions {
   selectedVertexIndices: readonly number[]
   hoveredVertexIndex: number | null
   hoveredHandle: 'in' | 'out' | null
+  /** Draw a numbered badge next to the vertex matching the keyframe panel's "Vertex N" rows */
+  showIndexLabel?: boolean
+  /** Vertex has a path-vertex keyframe at the current playhead */
+  isKeyedAtCurrentFrame?: boolean
 }
 
 export function drawMaskVertexWithHandles({
@@ -83,6 +87,8 @@ export function drawMaskVertexWithHandles({
   selectedVertexIndices,
   hoveredVertexIndex,
   hoveredHandle,
+  showIndexLabel = false,
+  isKeyedAtCurrentFrame = false,
 }: DrawMaskVertexWithHandlesOptions): void {
   const [vertexX, vertexY] = vertexToScreen(vertex)
   const hasInHandle = vertex.inHandle[0] !== 0 || vertex.inHandle[1] !== 0
@@ -148,4 +154,25 @@ export function drawMaskVertexWithHandles({
   ctx.strokeStyle = isSelected ? '#f59e0b' : '#22d3ee'
   ctx.lineWidth = isSelected ? 2.5 : 1.5
   ctx.stroke()
+
+  // Numbered badge matching the keyframe panel's "Vertex N" rows. Amber when
+  // the vertex has a path-vertex keyframe at the current playhead.
+  if (showIndexLabel) {
+    const labelX = vertexX + 10
+    const labelY = vertexY - 10
+    ctx.beginPath()
+    ctx.arc(labelX, labelY, 7, 0, Math.PI * 2)
+    ctx.fillStyle = isKeyedAtCurrentFrame ? '#f59e0b' : 'rgba(2, 6, 23, 0.85)'
+    ctx.fill()
+    ctx.strokeStyle = isKeyedAtCurrentFrame ? '#fbbf24' : '#22d3ee'
+    ctx.lineWidth = 1
+    ctx.stroke()
+    if (typeof ctx.fillText === 'function') {
+      ctx.font = '600 8px Inter, ui-sans-serif, system-ui, sans-serif'
+      ctx.textAlign = 'center'
+      ctx.textBaseline = 'middle'
+      ctx.fillStyle = '#ffffff'
+      ctx.fillText(String(index + 1), labelX, labelY + 0.5)
+    }
+  }
 }

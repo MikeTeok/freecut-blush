@@ -1,11 +1,36 @@
 import type { MaskVertex } from '@/types/masks'
+import type { ItemKeyframes } from '@/types/keyframe'
 import type { TimelineTrack } from '@/types/timeline'
 import type { Transform } from '../types/gizmo'
 
 const SELECTED_VERTEX_RING_RADIUS = 8
 const TRACK_NUMBER_REGEX = /^Track\s+(\d+)$/i
+const PATH_VERTEX_PROPERTY_REGEX = /^pathVertex:(\d+):/
 
 export const MASK_GEOMETRY_TRANSFORM_PROPS = ['x', 'y', 'width', 'height'] as const
+
+/**
+ * Vertex indices that have at least one path-vertex keyframe exactly at the
+ * given frame. Mirrors the keyframe panel's "Vertex N" numbering so mask
+ * edits can be identified without peeking at the panel.
+ */
+export function computeKeyedVertexIndicesAtFrame(
+  itemKeyframes: ItemKeyframes | undefined,
+  itemFrom: number,
+  currentFrame: number,
+): ReadonlySet<number> {
+  const keyed = new Set<number>()
+  if (!itemKeyframes) return keyed
+  const relativeFrame = currentFrame - itemFrom
+  for (const entry of itemKeyframes.properties) {
+    const match = PATH_VERTEX_PROPERTY_REGEX.exec(entry.property)
+    if (!match) continue
+    if (entry.keyframes.some((keyframe) => keyframe.frame === relativeFrame)) {
+      keyed.add(Number(match[1]))
+    }
+  }
+  return keyed
+}
 
 export function cloneVertices(vertices: MaskVertex[]): MaskVertex[] {
   return vertices.map((vertex) => ({
