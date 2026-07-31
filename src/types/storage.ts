@@ -176,6 +176,9 @@ export type MediaTranscriptModel =
   | 'whisper-base'
   | 'whisper-small'
   | 'whisper-large'
+  // External local transcription via the Vibe bridge. Never used as a browser ASR model —
+  // it marks transcripts produced by the Vibe provider, which loads its own ggml .bin file.
+  | 'vibe'
 
 export type MediaTranscriptQuantization = 'hybrid' | 'fp32' | 'fp16' | 'q8' | 'q4'
 

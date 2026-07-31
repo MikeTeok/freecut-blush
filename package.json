@@ -7,6 +7,7 @@
     "dev": "vp dev --host",
     "dev:quiet": "vp dev --host --mode perf",
     "dev:compare": "node scripts/run-dev-and-perf.mjs",
+    "vibe-bridge": "node scripts/vibe-bridge.mjs",
     "build": "vp build",
     "build:perf": "vp build --mode perf",
     "lint": "vp lint src headless vite.config.ts",

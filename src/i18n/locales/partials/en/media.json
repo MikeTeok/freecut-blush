@@ -298,6 +298,10 @@
       "searchLanguages": "Search Languages",
       "start": "Start",
       "stop": "Stop",
+      "vibeConfigHint": "The Vibe binary, model file, and bridge are configured in Settings → AI.",
+      "vibeEngineInfo": "Transcribing with Vibe (local app)",
+      "vibeLanguageHint": "Choose the spoken language for better accuracy, or use auto detect.",
+      "vibeMissingConfig": "Set the Vibe executable and model paths in Settings → AI before transcribing.",
       "whisperLanguageHint": "Choose the spoken language for better accuracy, or use auto detect."
     },
     "type": {

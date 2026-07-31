@@ -72,7 +72,7 @@ vi.mock('@/features/media-library/deps/settings-contract', () => ({
 }))
 
 vi.mock('../transcription/registry', () => ({
-  getDefaultMediaTranscriptionAdapter: () => ({
+  getMediaTranscriptionAdapterForModel: () => ({
     createTranscriber: () => ({
       transcribe: transcribeMock,
     }),

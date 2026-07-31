@@ -13,6 +13,7 @@ export const BROWSER_WHISPER_MODEL_LABELS: Record<MediaTranscriptModel, string> 
   'whisper-base': 'Whisper Base',
   'whisper-small': 'Whisper Small',
   'whisper-large': 'Whisper Large v3 Turbo',
+  vibe: 'Vibe',
 }
 
 export const BROWSER_WHISPER_MODEL_OPTIONS = [

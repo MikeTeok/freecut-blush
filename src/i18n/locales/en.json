@@ -101,7 +101,20 @@
       "scene_other": "scenes",
       "captionIntervalHint": "{{estimate}}. Smaller intervals produce denser scenes but take longer to generate.",
       "defaultCaptionStyle": "Default caption style",
-      "defaultCaptionStyleDescription": "Style applied to captions generated from transcripts or AI captioning."
+      "defaultCaptionStyleDescription": "Style applied to captions generated from transcripts or AI captioning.",
+      "transcriptionEngine": "Transcription engine",
+      "transcriptionEngineDescription": "How transcripts are generated. Built-in runs in your browser; Vibe runs in the local Vibe app.",
+      "engineBuiltin": "Built-in (browser)",
+      "engineVibe": "Vibe (local app)",
+      "vibeBinaryPath": "Vibe executable path",
+      "vibeBinaryPathPlaceholder": "e.g. C:\\Program Files\\Vibe\\vibe.exe",
+      "vibeBinaryPathDescription": "Path to the Vibe binary: vibe.exe on Windows, vibe on Linux.",
+      "vibeModelPath": "Model file path",
+      "vibeModelPathPlaceholder": "e.g. C:\\models\\ggml-base.bin",
+      "vibeModelPathDescription": "Absolute path to a Whisper .bin model file (e.g. ggml-base.bin).",
+      "vibeBridgeUrl": "Bridge server URL",
+      "vibeBridgeUrlDescription": "URL of the local bridge server. Start it alongside the app with npm run vibe-bridge.",
+      "checkBridge": "Check bridge"
     },
     "timeline": {
       "snapByDefault": "Snap by Default",

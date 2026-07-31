@@ -11,6 +11,8 @@ const WHISPER_MODEL_BASE_ESTIMATES_MIB: Record<MediaTranscriptModel, number> = {
   'whisper-base': 420,
   'whisper-small': 900,
   'whisper-large': 2_600,
+  // Vibe runs outside the browser, so its footprint is never shown in the runtime registry.
+  vibe: 0,
 }
 
 // Parakeet ONNX footprint: fp16 encoder (~1.24 GB) + int8 decoder_joint (~18 MB) +

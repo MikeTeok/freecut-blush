@@ -101,4 +101,6 @@ export const MODEL_IDS: Record<WhisperModel, string> = {
   'whisper-base': 'onnx-community/whisper-base_timestamped',
   'whisper-small': 'onnx-community/whisper-small_timestamped',
   'whisper-large': 'onnx-community/whisper-large-v3-turbo_timestamped',
+  // Placeholder: Vibe loads a local ggml .bin via the bridge and never downloads in-browser.
+  vibe: 'vibe-local',
 }

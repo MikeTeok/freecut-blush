@@ -37,6 +37,7 @@ import {
   WHISPER_QUANTIZATION_OPTIONS,
 } from '@/shared/utils/whisper-settings'
 import type { MediaTranscriptModel, MediaTranscriptQuantization } from '@/types/storage'
+import { VIBE_TRANSCRIPTION_MODEL } from '../transcription/vibe-adapter'
 
 export interface TranscribeDialogValues {
   model: MediaTranscriptModel
@@ -80,10 +81,15 @@ export function TranscribeDialog({
   const defaultModel = useSettingsStore((s) => s.defaultWhisperModel)
   const defaultQuantization = useSettingsStore((s) => s.defaultWhisperQuantization)
   const defaultLanguage = useSettingsStore((s) => s.defaultWhisperLanguage)
+  const transcriptionProvider = useSettingsStore((s) => s.transcriptionProvider)
+  const vibeBinaryPath = useSettingsStore((s) => s.vibeBinaryPath)
+  const vibeModelPath = useSettingsStore((s) => s.vibeModelPath)
   const clearMediaSkimPreview = useEditorStore((s) => s.clearMediaSkimPreview)
   const clearCompoundClipSkimPreview = useEditorStore((s) => s.clearCompoundClipSkimPreview)
   const beginTranscriptionDialog = useEditorStore((s) => s.beginTranscriptionDialog)
   const endTranscriptionDialog = useEditorStore((s) => s.endTranscriptionDialog)
+
+  const usesVibeProvider = transcriptionProvider === 'vibe'
 
   const modelOptions = useMemo(() => getMediaTranscriptionModelOptions(), [])
 
@@ -127,6 +133,14 @@ export function TranscribeDialog({
   ])
 
   const handleStart = () => {
+    if (usesVibeProvider) {
+      onStart({
+        model: VIBE_TRANSCRIPTION_MODEL,
+        quantization: 'hybrid',
+        language: getWhisperLanguageSettingValue(languageValue),
+      })
+      return
+    }
     onStart({
       model,
       quantization,
@@ -177,82 +191,125 @@ export function TranscribeDialog({
         </DialogHeader>
 
         <div className="space-y-3">
-          <div className="space-y-1.5">
-            <Label htmlFor="transcribe-model" className="text-sm">
-              {t('media.transcribe.model')}
-            </Label>
-            <Select value={model} onValueChange={handleModelChange} disabled={isRunning}>
-              <SelectTrigger id="transcribe-model">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {modelOptions.map((option) => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          {usesVibeProvider ? (
+            <>
+              <div className="space-y-1.5">
+                <div className="rounded-md border border-border bg-secondary/35 px-3 py-2.5">
+                  <div className="text-sm font-medium">{t('media.transcribe.vibeEngineInfo')}</div>
+                  <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
+                    {t('media.transcribe.vibeConfigHint')}
+                  </p>
+                </div>
+              </div>
 
-          {!isParakeetModel(model) && (
-            <div className="space-y-1.5">
-              <Label htmlFor="transcribe-quantization" className="text-sm">
-                {t('media.transcribe.quantization')}
-              </Label>
-              <Select
-                value={quantization}
-                onValueChange={(value) => setQuantization(value as MediaTranscriptQuantization)}
-                disabled={isRunning}
-              >
-                <SelectTrigger id="transcribe-quantization">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {WHISPER_QUANTIZATION_OPTIONS.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
+              {!vibeBinaryPath.trim() && !vibeModelPath.trim() && !isRunning && (
+                <div
+                  role="alert"
+                  className="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-400"
+                >
+                  {t('media.transcribe.vibeMissingConfig')}
+                </div>
+              )}
 
-          {isParakeetModel(model) ? (
-            <div className="space-y-1.5">
-              <Label className="text-sm">{t('media.transcribe.language')}</Label>
-              <div className="rounded-md border border-border bg-secondary/35 px-3 py-2.5">
-                <div className="text-sm font-medium">{t('media.transcribe.autoDetect')}</div>
-                <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
-                  {t('media.transcribe.parakeetAutoDetects', {
-                    count: PARAKEET_SUPPORTED_LANGUAGES.size,
-                  })}
-                </p>
-                <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">
-                  {t('media.transcribe.parakeetChooseWhisper')}
+              <div className="space-y-1.5">
+                <Label htmlFor="transcribe-language" className="text-sm">
+                  {t('media.transcribe.language')}
+                </Label>
+                <Combobox
+                  id="transcribe-language"
+                  value={languageValue}
+                  onValueChange={setLanguageValue}
+                  options={WHISPER_LANGUAGE_OPTIONS}
+                  placeholder={t('media.transcribe.autoDetect')}
+                  searchPlaceholder={t('media.transcribe.searchLanguages')}
+                  emptyMessage={t('media.transcribe.noLanguages')}
+                  disabled={isRunning}
+                />
+                <p className="text-xs leading-relaxed text-muted-foreground">
+                  {t('media.transcribe.vibeLanguageHint')}
                 </p>
               </div>
-            </div>
+            </>
           ) : (
-            <div className="space-y-1.5">
-              <Label htmlFor="transcribe-language" className="text-sm">
-                {t('media.transcribe.language')}
-              </Label>
-              <Combobox
-                id="transcribe-language"
-                value={languageValue}
-                onValueChange={setLanguageValue}
-                options={WHISPER_LANGUAGE_OPTIONS}
-                placeholder={t('media.transcribe.autoDetect')}
-                searchPlaceholder={t('media.transcribe.searchLanguages')}
-                emptyMessage={t('media.transcribe.noLanguages')}
-                disabled={isRunning}
-              />
-              <p className="text-xs leading-relaxed text-muted-foreground">
-                {t('media.transcribe.whisperLanguageHint')}
-              </p>
-            </div>
+            <>
+              <div className="space-y-1.5">
+                <Label htmlFor="transcribe-model" className="text-sm">
+                  {t('media.transcribe.model')}
+                </Label>
+                <Select value={model} onValueChange={handleModelChange} disabled={isRunning}>
+                  <SelectTrigger id="transcribe-model">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {modelOptions.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {!isParakeetModel(model) && (
+                <div className="space-y-1.5">
+                  <Label htmlFor="transcribe-quantization" className="text-sm">
+                    {t('media.transcribe.quantization')}
+                  </Label>
+                  <Select
+                    value={quantization}
+                    onValueChange={(value) => setQuantization(value as MediaTranscriptQuantization)}
+                    disabled={isRunning}
+                  >
+                    <SelectTrigger id="transcribe-quantization">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {WHISPER_QUANTIZATION_OPTIONS.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
+              {isParakeetModel(model) ? (
+                <div className="space-y-1.5">
+                  <Label className="text-sm">{t('media.transcribe.language')}</Label>
+                  <div className="rounded-md border border-border bg-secondary/35 px-3 py-2.5">
+                    <div className="text-sm font-medium">{t('media.transcribe.autoDetect')}</div>
+                    <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
+                      {t('media.transcribe.parakeetAutoDetects', {
+                        count: PARAKEET_SUPPORTED_LANGUAGES.size,
+                      })}
+                    </p>
+                    <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">
+                      {t('media.transcribe.parakeetChooseWhisper')}
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-1.5">
+                  <Label htmlFor="transcribe-language" className="text-sm">
+                    {t('media.transcribe.language')}
+                  </Label>
+                  <Combobox
+                    id="transcribe-language"
+                    value={languageValue}
+                    onValueChange={setLanguageValue}
+                    options={WHISPER_LANGUAGE_OPTIONS}
+                    placeholder={t('media.transcribe.autoDetect')}
+                    searchPlaceholder={t('media.transcribe.searchLanguages')}
+                    emptyMessage={t('media.transcribe.noLanguages')}
+                    disabled={isRunning}
+                  />
+                  <p className="text-xs leading-relaxed text-muted-foreground">
+                    {t('media.transcribe.whisperLanguageHint')}
+                  </p>
+                </div>
+              )}
+            </>
           )}
 
           {errorMessage && !isRunning && (

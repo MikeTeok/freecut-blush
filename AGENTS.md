@@ -15,6 +15,7 @@ Browser-based multi-track video editor. React 19 + TypeScript + Vite.
 | `npm run test` | Vitest watch mode |
 | `npm run verify` | Full gate: check→boundaries→deps→coverage→build→headless |
 | `npm run routes` | Regenerate `src/routeTree.gen.ts` (TanStack Router) |
+| `npm run vibe-bridge` | Local bridge for the Vibe transcription provider (`scripts/vibe-bridge.mjs`) |
 | `npm run headless:test:portable` | Portable headless suite (Node + Chrome + edit + media) |
 
 All scripts use `vite-plus` (`vp`) under the hood.

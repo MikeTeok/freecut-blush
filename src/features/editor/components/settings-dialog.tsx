@@ -39,6 +39,7 @@ import {
 import {
   LocalInferenceUnloadControl,
   LocalModelCacheControl,
+  TranscriptionProviderSettings,
   useSettingsStore,
   CAPTIONING_INTERVAL_BOUNDS,
   DEFAULT_CAPTIONING_INTERVAL_SECONDS,
@@ -770,6 +771,10 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
 
                     {activeSection === 'ai' && (
                       <div className="space-y-3">
+                        <TranscriptionProviderSettings />
+
+                        <Separator className="bg-white/8" />
+
                         <div className="space-y-2">
                           <div className="flex items-center justify-between">
                             <div className="space-y-0.5">

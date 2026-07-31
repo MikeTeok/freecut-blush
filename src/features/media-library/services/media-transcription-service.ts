@@ -20,9 +20,10 @@ import type {
 } from '@/types/timeline'
 import type { TranscriptSegment, TranscribeOptions } from '../transcription/types'
 import {
-  getDefaultMediaTranscriptionAdapter,
+  getMediaTranscriptionAdapterForModel,
   getMediaTranscriptionModelLabel,
 } from '../transcription/registry'
+import { VIBE_TRANSCRIPTION_MODEL } from '../transcription/vibe-adapter'
 import { importMediaLibraryService } from './media-library-service-loader'
 import {
   buildCaptionTextItems,
@@ -323,11 +324,6 @@ function syncTranscriptCaptionItems(
 }
 
 class MediaTranscriptionService {
-  private readonly adapter = getDefaultMediaTranscriptionAdapter()
-  private readonly transcriber = this.adapter.createTranscriber({
-    model: DEFAULT_MODEL,
-    quantization: DEFAULT_QUANTIZATION,
-  })
   private activeJob: QueuedTranscriptionJob | null = null
   private queue: QueuedTranscriptionJob[] = []
   private readonly transcriptChangeListeners = new Set<(mediaId: string) => void>()
@@ -359,9 +355,13 @@ class MediaTranscriptionService {
     options: TranscriptionRequestOptions = {},
   ): Promise<MediaTranscript> {
     const settings = useSettingsStore.getState()
-    const model = options.model ?? settings.defaultWhisperModel ?? DEFAULT_MODEL
-    const quantization =
-      options.quantization ?? settings.defaultWhisperQuantization ?? DEFAULT_QUANTIZATION
+    const usesVibeProvider = settings.transcriptionProvider === 'vibe'
+    const model: MediaTranscriptModel = usesVibeProvider
+      ? VIBE_TRANSCRIPTION_MODEL
+      : (options.model ?? settings.defaultWhisperModel ?? DEFAULT_MODEL)
+    const quantization = usesVibeProvider
+      ? DEFAULT_QUANTIZATION
+      : (options.quantization ?? settings.defaultWhisperQuantization ?? DEFAULT_QUANTIZATION)
     const language = normalizeWhisperLanguage(options.language ?? settings.defaultWhisperLanguage)
     const requestKey = `${mediaId}:${model}:${quantization}:${language ?? 'auto'}`
     const listener: QueuedTranscriptionListener = {
@@ -552,7 +552,12 @@ class MediaTranscriptionService {
             lastModified: media.fileLastModified ?? Date.now(),
           })
 
-    const stream = this.transcriber.transcribe(file, {
+    const adapter = getMediaTranscriptionAdapterForModel(job.model)
+    const transcriber = adapter.createTranscriber({
+      model: job.model,
+      quantization: job.quantization,
+    })
+    const stream = transcriber.transcribe(file, {
       model: job.model,
       language: job.language,
       quantization: job.quantization,
@@ -612,12 +617,7 @@ class MediaTranscriptionService {
     // an older transcript snapshot.
     const compositionsState = useCompositionsStore.getState()
     for (const composition of compositionsState.compositions) {
-      const synced = syncTranscriptCaptionItems(
-        composition.items,
-        mediaId,
-        transcript,
-        sourceCues,
-      )
+      const synced = syncTranscriptCaptionItems(composition.items, mediaId, transcript, sourceCues)
       if (synced.updatedClipCount === 0) continue
       compositionsState.updateComposition(composition.id, { items: synced.items })
       updatedClipCount += synced.updatedClipCount
@@ -634,9 +634,7 @@ class MediaTranscriptionService {
       return synced.updatedClipCount > 0 ? { ...stash, items: synced.items } : stash
     }
     const nextStashStack = navigationState.stashStack.map(syncStash)
-    const nextMainHolder = navigationState.mainHolder
-      ? syncStash(navigationState.mainHolder)
-      : null
+    const nextMainHolder = navigationState.mainHolder ? syncStash(navigationState.mainHolder) : null
     if (updatedStashedClipCount > 0) {
       useCompositionNavigationStore.setState({
         stashStack: nextStashStack,
@@ -678,20 +676,52 @@ class MediaTranscriptionService {
     return await response.blob()
   }
 
+  // Serialize transcript-caption inserts per media+clip set. The auto-hook and
+  // the explicit Generate Captions dialog can both fire as a transcript lands;
+  // without this gate a second insert sees the freshly created caption track as
+  // occupied and stacks a whole new track on top. The gate is acquired
+  // synchronously (no await between check and add) so concurrent callers can't
+  // both pass the guard; the loser waits for the winner to release, then re-runs
+  // and the idempotent insert skips the captions that already exist.
+  private readonly inflightCaptionInserts = new Set<string>()
+
   async insertTranscriptAsCaptions(
     mediaId: string,
     options: InsertTranscriptAsCaptionsOptions = {},
   ): Promise<InsertTranscriptAsCaptionsResult> {
-    const transcript = await getTranscript(mediaId)
-    if (!transcript) {
-      throw new Error('No transcript found for this media item')
-    }
+    const gateKey = `${mediaId}:${[...(options.clipIds ?? [])].sort().join(',')}`
 
+    if (this.inflightCaptionInserts.has(gateKey)) {
+      await this.waitForCaptionInsert(gateKey)
+    }
+    this.inflightCaptionInserts.add(gateKey)
+
+    try {
+      return await this.runCaptionInsert(mediaId, options)
+    } finally {
+      this.inflightCaptionInserts.delete(gateKey)
+    }
+  }
+
+  private async waitForCaptionInsert(key: string): Promise<void> {
+    while (this.inflightCaptionInserts.has(key)) {
+      await new Promise((resolve) => setTimeout(resolve, 25))
+    }
+  }
+
+  private async runCaptionInsert(
+    mediaId: string,
+    options: InsertTranscriptAsCaptionsOptions,
+  ): Promise<InsertTranscriptAsCaptionsResult> {
     const timeline = useTimelineStore.getState()
     const project = useProjectStore.getState().currentProject
     const targetClips = this.resolveCaptionTargetClips(mediaId, options.clipIds)
     if (targetClips.length === 0) {
       throw new Error('Select a clip for this media, or place one on the timeline first')
+    }
+    const transcript = await getTranscript(mediaId)
+    if (!transcript) {
+      throw new Error('No transcript found for this media item')
     }
 
     const canvasWidth = project?.metadata.width ?? DEFAULT_PROJECT_WIDTH
@@ -713,8 +743,20 @@ class MediaTranscriptionService {
       : new Set<string>()
     const plannedItems = timeline.items.filter((item) => !generatedCaptionIdsToRemove.has(item.id))
     const insertedItems: TextItem[] = []
+    let skippedExistingCaptions = false
 
     for (const clip of targetClips) {
+      if (
+        !options.replaceExisting &&
+        findReplaceableCaptionItemsForClip(timeline.items, clip, 'transcript').length > 0
+      ) {
+        // The clip already carries transcript captions (the auto-hook and the
+        // explicit dialog both fired). Reuse them instead of stacking a second
+        // caption track on top.
+        skippedExistingCaptions = true
+        continue
+      }
+
       const clipRange = getCaptionRangeForClip(clip, transcript.segments, timeline.fps)
       if (!clipRange) {
         continue
@@ -767,6 +809,9 @@ class MediaTranscriptionService {
     }
 
     if (insertedItems.length === 0 && generatedCaptionIdsToRemove.size === 0) {
+      if (skippedExistingCaptions) {
+        return { insertedItemCount: 0, removedItemCount: 0 }
+      }
       throw new Error('Transcript does not overlap the selected clip source range')
     }
 

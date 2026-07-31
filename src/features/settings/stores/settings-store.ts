@@ -45,6 +45,16 @@ interface AppSettings {
   defaultWhisperQuantization: MediaTranscriptQuantization
   defaultWhisperLanguage: string
 
+  // Transcription provider — which engine produces transcripts. `builtin` runs whisper /
+  // parakeet in the browser; `vibe` delegates to the local Vibe app via the bridge server.
+  transcriptionProvider: TranscriptionProvider
+  /** Path to the Vibe binary (vibe.exe on Windows, vibe on Linux/macOS). */
+  vibeBinaryPath: string
+  /** Absolute path to a Whisper ggml .bin model file used by Vibe. */
+  vibeModelPath: string
+  /** Base URL of the local bridge server started with `npm run vibe-bridge`. */
+  vibeBridgeUrl: string
+
   // AI captioning — interval between sampled frames when running LFM captions.
   // Frames mode is converted to seconds at capture time using media.fps.
   captioningIntervalUnit: CaptioningIntervalUnit
@@ -67,6 +77,23 @@ export type CaptionSearchMode = 'keyword' | 'semantic'
 
 function normalizeCaptionSearchMode(value: unknown): CaptionSearchMode {
   return value === 'semantic' ? 'semantic' : 'keyword'
+}
+
+export type TranscriptionProvider = 'builtin' | 'vibe'
+
+const DEFAULT_VIBE_BRIDGE_URL = 'http://127.0.0.1:8765'
+
+function normalizeTranscriptionProvider(value: unknown): TranscriptionProvider {
+  return value === 'vibe' ? 'vibe' : 'builtin'
+}
+
+function normalizeStringSetting(value: unknown): string {
+  return typeof value === 'string' ? value : ''
+}
+
+function normalizeVibeBridgeUrl(value: unknown): string {
+  const url = normalizeStringSetting(value)
+  return url.trim() ? url : DEFAULT_VIBE_BRIDGE_URL
 }
 
 const DEFAULT_CAPTION_STYLE_PRESET_ID = CAPTION_STYLE_PRESETS[0]?.id ?? 'netflix'
@@ -156,6 +183,12 @@ const DEFAULT_SETTINGS: AppSettings = {
   defaultWhisperQuantization: DEFAULT_WHISPER_QUANTIZATION,
   defaultWhisperLanguage: DEFAULT_WHISPER_LANGUAGE,
 
+  // Transcription provider — builtin (in-browser) by default; Vibe requires a local bridge.
+  transcriptionProvider: 'builtin',
+  vibeBinaryPath: '',
+  vibeModelPath: '',
+  vibeBridgeUrl: DEFAULT_VIBE_BRIDGE_URL,
+
   // AI captioning defaults
   captioningIntervalUnit: 'seconds',
   captioningIntervalValue: DEFAULT_CAPTIONING_INTERVAL_SECONDS,
@@ -211,6 +244,18 @@ export const useSettingsStore = create<SettingsStore>()(
           }
           if (key === 'defaultCaptionStylePresetId') {
             return { defaultCaptionStylePresetId: normalizeCaptionStylePresetId(value) }
+          }
+          if (key === 'transcriptionProvider') {
+            return { transcriptionProvider: normalizeTranscriptionProvider(value) }
+          }
+          if (key === 'vibeBinaryPath') {
+            return { vibeBinaryPath: normalizeStringSetting(value) }
+          }
+          if (key === 'vibeModelPath') {
+            return { vibeModelPath: normalizeStringSetting(value) }
+          }
+          if (key === 'vibeBridgeUrl') {
+            return { vibeBridgeUrl: normalizeVibeBridgeUrl(value) }
           }
           return { [key]: value }
         }),
@@ -329,6 +374,10 @@ export const useSettingsStore = create<SettingsStore>()(
           defaultCaptionStylePresetId: normalizeCaptionStylePresetId(
             typedState.defaultCaptionStylePresetId,
           ),
+          transcriptionProvider: normalizeTranscriptionProvider(typedState.transcriptionProvider),
+          vibeBinaryPath: normalizeStringSetting(typedState.vibeBinaryPath),
+          vibeModelPath: normalizeStringSetting(typedState.vibeModelPath),
+          vibeBridgeUrl: normalizeVibeBridgeUrl(typedState.vibeBridgeUrl),
         }
       },
     },

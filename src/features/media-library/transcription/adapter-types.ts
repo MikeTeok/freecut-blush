@@ -1,14 +1,23 @@
 import type { MediaTranscriptModel } from '@/types/storage'
-import type { TranscribeOptions } from './types'
-import type { TranscribeStream } from './browser-transcriber'
+import type { TranscribeOptions, TranscriptSegment } from './types'
 
 export interface MediaTranscriptionModelOption {
   value: MediaTranscriptModel
   label: string
 }
 
+/**
+ * The consumption surface a transcription run exposes. `TranscribeStream` (the browser
+ * whisper/parakeet implementation) satisfies this structurally; bridge-backed providers
+ * return their own implementation.
+ */
+export interface MediaTranscriptionStream {
+  collect(): Promise<TranscriptSegment[]>
+  cancel(message?: string): void
+}
+
 export interface MediaTranscriber {
-  transcribe(file: File, runtimeOptions?: TranscribeOptions): TranscribeStream
+  transcribe(file: File, runtimeOptions?: TranscribeOptions): MediaTranscriptionStream
 }
 
 export interface MediaTranscriptionAdapter {
