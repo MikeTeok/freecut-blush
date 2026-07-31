@@ -256,6 +256,79 @@ describe('frame scene', () => {
     expect(activeMasks[0]?.shape.pathVertices).toBe(previewVertices)
   })
 
+  it('applies animated path vertex keyframes to active path masks', () => {
+    const baseVertices = [
+      {
+        position: [0.1, 0.1] as [number, number],
+        inHandle: [0.1, 0.1] as [number, number],
+        outHandle: [0.1, 0.1] as [number, number],
+      },
+    ]
+    const mask = {
+      id: 'animated-mask-path',
+      type: 'shape' as const,
+      trackId: 'track-1',
+      from: 0,
+      durationInFrames: 30,
+      label: 'Animated mask path',
+      shapeType: 'path' as const,
+      fillColor: '#fff',
+      isMask: true,
+      pathVertices: baseVertices,
+      transform: { x: 0, y: 0, width: 200, height: 100, rotation: 0, opacity: 1 },
+    }
+    const keyframes = {
+      itemId: mask.id,
+      properties: [
+        {
+          property: 'pathVertex:0:positionX' as const,
+          keyframes: [
+            { id: 'v0', frame: 0, value: 0.1, easing: 'linear' as const },
+            { id: 'v1', frame: 10, value: 0.5, easing: 'linear' as const },
+          ],
+        },
+      ],
+    }
+
+    const activeMasks = resolveActiveShapeMasksAtFrame([mask], {
+      canvas: { width: 1280, height: 720, fps: 30 },
+      frame: 5,
+      getKeyframes: (itemId) => (itemId === mask.id ? keyframes : undefined),
+    })
+
+    expect(activeMasks).toHaveLength(1)
+    expect(activeMasks[0]?.shape.pathVertices?.[0]?.position[0]).toBeCloseTo(0.3, 5)
+  })
+
+  it('keeps the base mask shape identity when the path is not animated', () => {
+    const mask = {
+      id: 'static-mask-path',
+      type: 'shape' as const,
+      trackId: 'track-1',
+      from: 0,
+      durationInFrames: 30,
+      label: 'Static mask path',
+      shapeType: 'path' as const,
+      fillColor: '#fff',
+      isMask: true,
+      pathVertices: [
+        {
+          position: [0.1, 0.1] as [number, number],
+          inHandle: [0.1, 0.1] as [number, number],
+          outHandle: [0.1, 0.1] as [number, number],
+        },
+      ],
+      transform: { x: 0, y: 0, width: 200, height: 100, rotation: 0, opacity: 1 },
+    }
+
+    const activeMasks = resolveActiveShapeMasksAtFrame([mask], {
+      canvas: { width: 1280, height: 720, fps: 30 },
+      frame: 5,
+    })
+
+    expect(activeMasks[0]?.shape).toBe(mask)
+  })
+
   it('resolves linked mask transforms at shared composition time', () => {
     const source = {
       id: 'source-shape',

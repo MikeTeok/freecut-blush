@@ -13,6 +13,8 @@ import {
   resolveAnimatedTransform,
   hasKeyframeAnimation,
   resolveAnimatedTextItem,
+  resolveAnimatedShapeItem,
+  hasPathVertexKeyframes,
   applyMotionAnimationLayers,
   applyMotionModifiers,
 } from '../deps/keyframes'
@@ -189,7 +191,15 @@ export function resolveActiveShapeMasksAtFrame(
       return frame >= start && frame < end
     })
     .map(({ mask, trackOrder }) => {
-      const shape = applyPreviewPathVerticesToShape(mask, getPreviewPathVertices)
+      const keyframes = getKeyframes?.(mask.id)
+      // Masks must follow animated path geometry (vertex keyframes) the same
+      // way visible shapes do. Only rebuild the shape when a path is actually
+      // animated so the mask-info stability reuse keeps working unchanged.
+      const animatedShape =
+        keyframes && hasPathVertexKeyframes(keyframes)
+          ? resolveAnimatedShapeItem(mask, keyframes, frame - mask.from)
+          : mask
+      const shape = applyPreviewPathVerticesToShape(animatedShape, getPreviewPathVertices)
 
       return {
         shape,

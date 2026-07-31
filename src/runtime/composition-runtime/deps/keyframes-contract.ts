@@ -16,3 +16,4 @@ export {
 } from '@/features/keyframes/utils/interpolation'
 export { resolveAnimatedTextItem } from '@/features/keyframes/utils/animated-text-item'
 export { resolveAnimatedShapeItem } from '@/features/keyframes/utils/animated-shape-item'
+export { hasPathVertexKeyframes } from '@/features/keyframes/utils/path-animatable-properties'

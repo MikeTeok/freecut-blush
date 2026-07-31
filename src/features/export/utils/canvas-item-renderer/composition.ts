@@ -8,6 +8,7 @@ import { doesMaskAffectTrack } from '@/shared/utils/mask-scope'
 import { hasMediaCrop } from '@/shared/utils/media-crop'
 import { applyPreviewPathVerticesToShape } from '@/features/export/deps/composition-runtime'
 import { hasCornerPin } from '@/features/export/deps/composition-runtime'
+import { resolveAnimatedShapeItem } from '@/features/export/deps/keyframes'
 import { getAnimatedCrop, getAnimatedTransform } from '../canvas-keyframes'
 import {
   renderEffectsFromMaskedSource,
@@ -138,10 +139,11 @@ export async function renderCompositionItem(
           localFrame,
           subCanvasSettings,
         )
+        const animatedMaskItem = resolveAnimatedShapeItem(subItem, subItemKeyframes, localFrame)
         const effectiveMaskItem =
           rctx.renderMode === 'preview'
-            ? applyPreviewPathVerticesToShape(subItem, rctx.getPreviewPathVerticesOverride)
-            : subItem
+            ? applyPreviewPathVerticesToShape(animatedMaskItem, rctx.getPreviewPathVerticesOverride)
+            : animatedMaskItem
         activeSubMasks.push({
           ...buildPreparedMask(effectiveMaskItem, subItemTransform, subMaskSettings),
           trackOrder: track.order,
@@ -409,13 +411,15 @@ export function getActiveSubCompMasks(
         continue
       }
       if (subItem.type !== 'shape' || !subItem.isMask) continue
+      const subItemKeyframes = subData.keyframesMap.get(subItem.id)
+      const animatedMaskItem = resolveAnimatedShapeItem(subItem, subItemKeyframes, localFrame)
       const effectiveMaskItem =
         rctx.renderMode === 'preview'
-          ? applyPreviewPathVerticesToShape(subItem, rctx.getPreviewPathVerticesOverride)
-          : subItem
+          ? applyPreviewPathVerticesToShape(animatedMaskItem, rctx.getPreviewPathVerticesOverride)
+          : animatedMaskItem
       const maskTransform = getAnimatedTransform(
         subItem,
-        subData.keyframesMap.get(subItem.id),
+        subItemKeyframes,
         localFrame,
         subCanvasSettings,
       )
