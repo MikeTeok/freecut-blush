@@ -63,6 +63,7 @@ interface TranscribeDialogProps {
   onCancel: () => void
 }
 
+// fallow-ignore-next-line complexity
 export function TranscribeDialog({
   open,
   onOpenChange,

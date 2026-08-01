@@ -206,6 +206,7 @@ export const PreviewArea = memo(function PreviewArea({
   const requestConvertSelectedVertex = useMaskEditorStore((s) => s.requestConvertSelectedVertex)
   const stopMaskEditing = useMaskEditorStore((s) => s.stopEditing)
 
+  // fallow-ignore-next-line complexity
   const handleKeyframeAllVertices = useCallback(() => {
     const maskStore = useMaskEditorStore.getState()
     const itemId = maskStore.editingItemId
