@@ -24,6 +24,7 @@ export type LocalModelCacheId =
   | 'parakeet'
   | 'supertonic-tts'
   | 'rife'
+  | 'mobilesam'
 
 export interface LocalModelCacheDefinition {
   id: LocalModelCacheId
@@ -103,6 +104,13 @@ export const LOCAL_MODEL_CACHE_DEFINITIONS: LocalModelCacheDefinition[] = [
     description: 'RIFE frame interpolation model, used to render higher-frame-rate video.',
     cacheName: ONNX_MODEL_CACHE_NAME,
     matchPathFragments: ['/RIFE_fp32_timestep/'],
+  },
+  {
+    id: 'mobilesam',
+    label: 'MobileSAM',
+    description: 'MobileSAM encoder and decoder ONNX weights for the AI magic mask tool.',
+    cacheName: ONNX_MODEL_CACHE_NAME,
+    matchPathFragments: ['mobilesam.encoder.onnx', 'mobilesam.decoder.onnx'],
   },
 ]
 

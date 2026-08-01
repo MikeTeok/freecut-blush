@@ -169,6 +169,7 @@ interface UsePreviewRendererControllerParams {
   getPreviewEffectsOverride: (itemId: string) => ItemEffect[] | undefined
   getPreviewCornerPinOverride: (itemId: string) => TimelineItem['cornerPin'] | undefined
   getPreviewPathVerticesOverride: PreviewPathVerticesOverride
+  getPreviewBitmapMaskOverride: (itemId: string) => OffscreenCanvas | undefined
   getLivePlaybackFrame: () => number | null
   getLiveItemSnapshot: (itemId: string) => TimelineItem | undefined
   getLiveKeyframes: (itemId: string) => ItemKeyframes | undefined
@@ -242,6 +243,7 @@ export function usePreviewRendererController({
   getPreviewEffectsOverride,
   getPreviewCornerPinOverride,
   getPreviewPathVerticesOverride,
+  getPreviewBitmapMaskOverride,
   getLivePlaybackFrame,
   getLiveItemSnapshot,
   getLiveKeyframes,
@@ -464,6 +466,7 @@ export function usePreviewRendererController({
             getPreviewEffectsOverride,
             getPreviewCornerPinOverride,
             getPreviewPathVerticesOverride,
+            getPreviewBitmapMaskOverride,
             getLiveItemSnapshot,
             getLiveKeyframes,
           },
@@ -497,6 +500,7 @@ export function usePreviewRendererController({
     getPreviewCornerPinOverride,
     getPreviewEffectsOverride,
     getPreviewPathVerticesOverride,
+    getPreviewBitmapMaskOverride,
     getPreviewTransformOverride,
     isResolving,
     renderSize.height,
@@ -529,6 +533,7 @@ export function usePreviewRendererController({
             getPreviewEffectsOverride,
             getPreviewCornerPinOverride,
             getPreviewPathVerticesOverride,
+            getPreviewBitmapMaskOverride,
             getLiveItemSnapshot,
             getLiveKeyframes,
             renderText: !domTextScrubOverlayEnabled,
@@ -559,6 +564,7 @@ export function usePreviewRendererController({
       getPreviewCornerPinOverride,
       getPreviewEffectsOverride,
       getPreviewPathVerticesOverride,
+      getPreviewBitmapMaskOverride,
       getPreviewTransformOverride,
       isResolving,
       renderSize.height,
@@ -608,6 +614,7 @@ export function usePreviewRendererController({
               getPreviewEffectsOverride,
               getPreviewCornerPinOverride,
               getPreviewPathVerticesOverride,
+              getPreviewBitmapMaskOverride,
               getLiveItemSnapshot,
               getLiveKeyframes,
               renderText: !domTextScrubOverlayEnabled,
@@ -707,6 +714,7 @@ export function usePreviewRendererController({
       getPreviewCornerPinOverride,
       getPreviewEffectsOverride,
       getPreviewPathVerticesOverride,
+      getPreviewBitmapMaskOverride,
       getPreviewTransformOverride,
       isGizmoInteractingRef,
       isResolving,

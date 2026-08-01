@@ -695,6 +695,8 @@
       "addText": "Adicionar texto",
       "pen": "Caneta",
       "penToolHint": "Desenhe uma forma de caminho personalizada com a ferramenta caneta",
+      "aiMask": "Máscara IA",
+      "aiMaskToolHint": "Crie uma forma selecionando um objeto com IA",
       "adjustmentLayer": "Camada de ajuste",
       "blankAdjustmentLayer": "Camada de ajuste em branco",
       "presets": "Predefinições"

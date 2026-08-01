@@ -19,6 +19,8 @@
       "addText": "텍스트 추가",
       "pen": "펜",
       "penToolHint": "펜 도구로 사용자 지정 경로 도형 그리기",
+      "aiMask": "AI 마스크",
+      "aiMaskToolHint": "AI로 객체를 선택해 도형을 만들어 보세요",
       "adjustmentLayer": "조정 레이어",
       "blankAdjustmentLayer": "빈 조정 레이어",
       "presets": "프리셋"

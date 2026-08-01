@@ -219,6 +219,32 @@ export function buildPreparedMask(
 }
 
 /**
+ * Build a prepared mask whose geometry is a full-resolution bitmap (AI magic
+ * mask). Settings (invert/feather/opacity/type) still come from the mask item,
+ * matching `buildPreparedMask`'s alpha-mask branch.
+ */
+export function bitmapMaskToPreparedMask(
+  mask: ShapeItem,
+  bitmap: OffscreenCanvas,
+  transform: ResolvedTransform,
+): PreparedMask {
+  const maskType = mask.maskType ?? 'alpha'
+  const feather = maskType === 'alpha' ? (mask.maskFeather ?? 0) : 0
+  const opacity =
+    (Math.max(0, Math.min(100, mask.maskOpacity ?? 100)) / 100) *
+    Math.max(0, Math.min(1, transform.opacity))
+
+  return {
+    bitmapMask: bitmap,
+    inverted: mask.maskInvert ?? false,
+    feather,
+    opacity,
+    maskType,
+    trackOrder: 0,
+  }
+}
+
+/**
  * Collect all mask items from visible tracks.
  *
  * @param tracks - All timeline tracks
@@ -447,12 +473,7 @@ export function applyMasks(
         mask.opacity,
         canvas,
       )
-    } else if (
-      mask.maskType === 'clip' &&
-      mask.feather === 0 &&
-      mask.opacity === 1 &&
-      mask.path
-    ) {
+    } else if (mask.maskType === 'clip' && mask.feather === 0 && mask.opacity === 1 && mask.path) {
       // Simple clip mask
       outputCtx.save()
       applyClipMask(outputCtx, mask.path, mask.inverted, canvas)
@@ -513,6 +534,7 @@ export function getActiveMasksForFrame(
   getPreviewPathVerticesOverride?: PreviewPathVerticesOverride,
   getLiveItem?: (itemId: string) => ShapeItem | undefined,
   getExpressionItem?: (itemId: string) => TimelineItem | undefined,
+  getPreviewBitmapMaskOverride?: (itemId: string) => OffscreenCanvas | undefined,
 ): Array<{
   path?: Path2D
   bitmapMask?: OffscreenCanvas
@@ -545,8 +567,11 @@ export function getActiveMasksForFrame(
   })
 
   for (const mask of activeMaskShapes) {
+    const bitmapOverride = getPreviewBitmapMaskOverride?.(mask.shape.id)
     activeMasks.push({
-      ...buildPreparedMask(mask.shape, mask.transform, canvas),
+      ...(bitmapOverride
+        ? bitmapMaskToPreparedMask(mask.shape, bitmapOverride, mask.transform)
+        : buildPreparedMask(mask.shape, mask.transform, canvas)),
       trackOrder: mask.trackOrder,
     })
   }

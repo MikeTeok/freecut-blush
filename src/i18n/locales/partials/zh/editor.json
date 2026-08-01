@@ -695,6 +695,8 @@
       "addText": "添加文本",
       "pen": "钢笔",
       "penToolHint": "使用钢笔工具绘制自定义路径形状",
+      "aiMask": "AI 蒙版",
+      "aiMaskToolHint": "通过 AI 选择对象来创建形状",
       "adjustmentLayer": "调整图层",
       "blankAdjustmentLayer": "空白调整图层",
       "presets": "预设"

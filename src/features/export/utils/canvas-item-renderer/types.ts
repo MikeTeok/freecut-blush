@@ -179,6 +179,11 @@ export interface ItemRenderContext {
   adjustmentLayers: AdjustmentLayerWithTrackOrder[]
   getPreviewEffectsOverride?: (itemId: string) => ItemEffect[] | undefined
   getPreviewPathVerticesOverride?: PreviewPathVerticesOverride
+  /**
+   * Preview-only: replace a mask item's geometry with a full-canvas-resolution
+   * bitmap (the AI-generated magic mask). Keyed by mask item id.
+   */
+  getPreviewBitmapMaskOverride?: (itemId: string) => OffscreenCanvas | undefined
 
   // Pre-computed sub-composition render data (built once during preload)
   subCompRenderData: Map<string, SubCompRenderData>

@@ -23,6 +23,8 @@ export {
   resolveCornerPinTargetRect,
   resolveCornerPinForSize,
   withCornerPinReferenceSize,
+  hasCornerPin,
 } from '@/runtime/composition-runtime/utils/corner-pin'
+export { getShapePath } from '@/runtime/composition-runtime/utils/shape-path'
 export { clearPreviewAudioCache } from '@/runtime/composition-runtime/utils/audio-decode-cache'
 export { deletePreviewAudioConform } from '@/runtime/composition-runtime/utils/preview-audio-conform'

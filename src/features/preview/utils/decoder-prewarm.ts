@@ -276,6 +276,7 @@ function closeUnclaimedBitmap(bitmap: unknown): void {
 }
 
 function createPoolWorker(): PoolWorker | null {
+  if (typeof Worker === 'undefined') return null
   try {
     const w = new Worker(new URL('../workers/decoder-prewarm-worker.ts', import.meta.url), {
       type: 'module',

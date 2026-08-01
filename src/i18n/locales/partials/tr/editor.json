@@ -695,6 +695,8 @@
       "addText": "Metin ekle",
       "pen": "Kalem",
       "penToolHint": "Kalem aracıyla özel bir yol şekli çizin",
+      "aiMask": "Yapay Zeka Maskesi",
+      "aiMaskToolHint": "Yapay zeka ile bir nesne seçerek şekil oluşturun",
       "adjustmentLayer": "Ayar katmanı",
       "blankAdjustmentLayer": "Boş ayar katmanı",
       "presets": "Ön Ayarlar"

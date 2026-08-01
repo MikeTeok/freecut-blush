@@ -19,6 +19,8 @@
       "addText": "Añadir texto",
       "pen": "Pluma",
       "penToolHint": "Dibuja una forma de ruta personalizada con la herramienta pluma",
+      "aiMask": "Máscara IA",
+      "aiMaskToolHint": "Crea una forma seleccionando un objeto con IA",
       "adjustmentLayer": "Capa de ajuste",
       "blankAdjustmentLayer": "Capa de ajuste en blanco",
       "presets": "Preajustes"

@@ -695,6 +695,8 @@
       "addText": "Ajouter du texte",
       "pen": "Plume",
       "penToolHint": "Dessiner une forme de tracé personnalisée avec l'outil plume",
+      "aiMask": "Masque IA",
+      "aiMaskToolHint": "Créer une forme en sélectionnant un objet avec l'IA",
       "adjustmentLayer": "Calque d'ajustement",
       "blankAdjustmentLayer": "Calque d'ajustement vide",
       "presets": "Préréglages"

@@ -199,6 +199,12 @@ export const PreviewArea = memo(function PreviewArea({
   const requestCancelPenMode = useMaskEditorStore((s) => s.requestCancelPenMode)
   const requestConvertSelectedVertex = useMaskEditorStore((s) => s.requestConvertSelectedVertex)
   const stopMaskEditing = useMaskEditorStore((s) => s.stopEditing)
+  const aiMaskMode = useMaskEditorStore((s) => s.aiMaskMode)
+  const aiBusy = useMaskEditorStore((s) => s.aiBusy)
+  const aiError = useMaskEditorStore((s) => s.aiError)
+  const aiDownloadProgress = useMaskEditorStore((s) => s.aiDownloadProgress)
+  const aiPromptPointCount = useMaskEditorStore((s) => s.aiPromptPoints.length)
+  const resetAiSession = useMaskEditorStore((s) => s.resetAiSession)
   const editVertexCount = useItemsStore(
     useCallback(
       (s) => {
@@ -625,6 +631,55 @@ export const PreviewArea = memo(function PreviewArea({
                 </Button>
               </div>
             </div>
+          ) : aiMaskMode ? (
+            <div
+              className="border-t border-border panel-header flex items-center px-3 flex-shrink-0 gap-3 overflow-hidden"
+              style={{
+                height: `calc(1.75rem + ${EDITOR_LAYOUT_CSS_VALUES.previewControlsHeight})`,
+              }}
+              role="toolbar"
+              aria-label="AI mask controls"
+            >
+              <div className="flex min-w-0 flex-1 items-center gap-3">
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-cyan-500">
+                    AI Mask
+                  </span>
+                  <span className="rounded-full bg-cyan-500/10 px-2 py-0.5 text-[10px] font-medium text-cyan-600">
+                    {aiPromptPointCount} {aiPromptPointCount === 1 ? 'point' : 'points'}
+                  </span>
+                </div>
+                <span className="min-w-0 truncate text-xs text-muted-foreground">
+                  {aiBusy
+                    ? aiDownloadProgress !== null
+                      ? `Downloading MobileSAM model ${Math.round(aiDownloadProgress * 100)}%…`
+                      : 'Segmenting…'
+                    : aiError
+                      ? `AI mask error: ${aiError}`
+                      : 'Click to keep an area. Alt+click to exclude. Right-click removes the last point.'}
+                </span>
+              </div>
+              <div className="flex flex-shrink-0 items-center gap-2">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  className="h-8 px-3 text-[11px]"
+                  disabled={aiPromptPointCount === 0 || aiBusy}
+                  onClick={resetAiSession}
+                >
+                  Clear
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  className="h-8 px-3 text-[11px]"
+                  onClick={() => useMaskEditorStore.getState().requestCommitAiMask()}
+                >
+                  Done
+                </Button>
+              </div>
+            </div>
           ) : isPathEditModeActive ? (
             <div
               className="border-t border-border panel-header flex items-center px-3 flex-shrink-0 gap-3 overflow-hidden"
@@ -677,6 +732,7 @@ export const PreviewArea = memo(function PreviewArea({
                 <Button
                   type="button"
                   size="sm"
+                  variant="secondary"
                   className="h-8 px-3 text-[11px]"
                   onClick={stopMaskEditing}
                 >

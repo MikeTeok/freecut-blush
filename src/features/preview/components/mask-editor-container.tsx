@@ -30,6 +30,7 @@ export const MaskEditorContainer = memo(function MaskEditorContainer({
   const isEditing = useMaskEditorStore((s) => s.isEditing)
   const editingItemId = useMaskEditorStore((s) => s.editingItemId)
   const shapePenMode = useMaskEditorStore((s) => s.shapePenMode)
+  const aiMaskMode = useMaskEditorStore((s) => s.aiMaskMode)
 
   const editingItem = useItemsStore(
     useCallback(
@@ -45,8 +46,8 @@ export const MaskEditorContainer = memo(function MaskEditorContainer({
   }, [containerRect, playerSize, projectSize, zoom])
 
   const itemTransform = useMemo((): Transform | null => {
-    // Shape pen mode: use full canvas as the coordinate space
-    if (shapePenMode) {
+    // Shape pen mode / standalone AI mask mode: full canvas as coordinate space
+    if (shapePenMode || aiMaskMode) {
       return {
         x: 0,
         y: 0,
@@ -69,7 +70,7 @@ export const MaskEditorContainer = memo(function MaskEditorContainer({
       opacity: resolved.opacity,
       cornerRadius: resolved.cornerRadius,
     }
-  }, [editingItem, projectSize, shapePenMode, visualTransforms])
+  }, [editingItem, projectSize, shapePenMode, aiMaskMode, visualTransforms])
 
   if (!isEditing || !coordParams || !itemTransform) return null
 

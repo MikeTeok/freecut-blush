@@ -1,12 +1,4 @@
-import {
-  useMemo,
-  useCallback,
-  memo,
-  useEffect,
-  useLayoutEffect,
-  useRef,
-  useState,
-} from 'react'
+import { useMemo, useCallback, memo, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { useRafDeferredValue } from '@/shared/hooks/use-raf-deferred-value'
 import { usePreviewBridgeStore } from '@/shared/state/preview-bridge'
 import { usePlaybackStore } from '@/shared/state/playback'
@@ -309,6 +301,7 @@ const VideoPreviewBase = memo(function VideoPreviewBase({
     getPreviewEffectsOverride,
     getPreviewCornerPinOverride,
     getPreviewPathVerticesOverride,
+    getPreviewBitmapMaskOverride,
     getLiveItemSnapshot,
     getLiveKeyframes,
   } = usePreviewCompositionModel({
@@ -463,6 +456,7 @@ const VideoPreviewBase = memo(function VideoPreviewBase({
             getPreviewEffectsOverride: getPreviewEffectsOverrideWithGradeApplied,
             getPreviewCornerPinOverride,
             getPreviewPathVerticesOverride,
+            getPreviewBitmapMaskOverride,
             getLiveItemSnapshot,
             getLiveKeyframes,
             renderText: !domTextScrubOverlayPlan.enabled,
@@ -496,6 +490,7 @@ const VideoPreviewBase = memo(function VideoPreviewBase({
       getPreviewCornerPinOverride,
       getPreviewEffectsOverrideWithGradeApplied,
       getPreviewPathVerticesOverride,
+      getPreviewBitmapMaskOverride,
       getPreviewTransformOverride,
       isResolving,
       renderSize.height,
@@ -640,6 +635,7 @@ const VideoPreviewBase = memo(function VideoPreviewBase({
       getPreviewEffectsOverride,
       getPreviewCornerPinOverride,
       getPreviewPathVerticesOverride,
+      getPreviewBitmapMaskOverride,
       getLivePlaybackFrame,
       getLiveItemSnapshot,
       getLiveKeyframes,
@@ -915,11 +911,7 @@ export const VideoPreview = memo(function VideoPreview(props: VideoPreviewProps)
   const { chrome = 'edit', ...previewProps } = props
   const itemsSnapshot = useTransformStableItemsSnapshot()
   return (
-    <DeferredVideoPreview
-      {...previewProps}
-      overlayChrome={chrome}
-      itemsSnapshot={itemsSnapshot}
-    />
+    <DeferredVideoPreview {...previewProps} overlayChrome={chrome} itemsSnapshot={itemsSnapshot} />
   )
 })
 
@@ -931,12 +923,7 @@ const DeferredVideoPreview = memo(function DeferredVideoPreview({
   itemsSnapshot: PreviewItemsSnapshot
 }) {
   const deferredItemsSnapshot = useRafDeferredValue(itemsSnapshot)
-  return (
-    <VideoPreviewBase
-      {...props}
-      itemsSnapshot={deferredItemsSnapshot}
-    />
-  )
+  return <VideoPreviewBase {...props} itemsSnapshot={deferredItemsSnapshot} />
 })
 
 export const ColorVideoPreview = memo(function ColorVideoPreview(props: VideoPreviewProps) {

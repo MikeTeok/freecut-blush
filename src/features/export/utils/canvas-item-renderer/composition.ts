@@ -16,7 +16,12 @@ import {
   combineEffects,
   type AdjustmentLayerWithTrackOrder,
 } from '../canvas-effects'
-import { applyMasks, buildPreparedMask, type MaskCanvasSettings } from '../canvas-masks'
+import {
+  applyMasks,
+  bitmapMaskToPreparedMask,
+  buildPreparedMask,
+  type MaskCanvasSettings,
+} from '../canvas-masks'
 import {
   getItemRenderTimelineSpan,
   getRenderTimelineSourceStart,
@@ -423,8 +428,14 @@ export function getActiveSubCompMasks(
         localFrame,
         subCanvasSettings,
       )
+      const bitmapOverride =
+        rctx.renderMode === 'preview'
+          ? rctx.getPreviewBitmapMaskOverride?.(effectiveMaskItem.id)
+          : undefined
       activeMasks.push({
-        ...buildPreparedMask(effectiveMaskItem, maskTransform, subMaskSettings),
+        ...(bitmapOverride
+          ? bitmapMaskToPreparedMask(effectiveMaskItem, bitmapOverride, maskTransform)
+          : buildPreparedMask(effectiveMaskItem, maskTransform, subMaskSettings)),
         shape: effectiveMaskItem,
         transform: maskTransform,
         trackOrder: track.order,

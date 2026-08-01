@@ -695,6 +695,8 @@
       "addText": "テキストを追加",
       "pen": "ペン",
       "penToolHint": "ペンツールでカスタムパス図形を描画",
+      "aiMask": "AIマスク",
+      "aiMaskToolHint": "AIでオブジェクトを選択して図形を作成",
       "adjustmentLayer": "調整レイヤー",
       "blankAdjustmentLayer": "空の調整レイヤー",
       "presets": "プリセット"

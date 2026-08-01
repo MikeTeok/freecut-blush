@@ -226,6 +226,28 @@ describe('canvas mask animation', () => {
     expect((activeMasks[0]!.path as { value?: string }).value).toContain('77')
   })
 
+  it('substitutes an AI bitmap mask for the mask item geometry', () => {
+    const index = buildMaskFrameIndex([track], canvas)
+    const aiBitmap = new OffscreenCanvas(1920, 1080)
+
+    const activeMasks = getActiveMasksForFrame(
+      index,
+      10,
+      canvas,
+      new Map(),
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      (itemId: string) => (itemId === 'mask-1' ? aiBitmap : undefined),
+    )
+
+    expect(activeMasks).toHaveLength(1)
+    expect(activeMasks[0]!.bitmapMask).toBe(aiBitmap)
+    expect(activeMasks[0]!.path).toBeUndefined()
+    expect(activeMasks[0]!.maskType).toBe('clip')
+  })
+
   it('carries mask and animated layer opacity into the prepared matte strength', () => {
     const preparedMask = buildPreparedMask(
       { ...baseMask, maskOpacity: 50 },

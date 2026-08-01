@@ -230,6 +230,14 @@ export function usePreviewCompositionModel({
     return undefined
   }, [])
 
+  const getPreviewBitmapMaskOverride = useCallback((itemId: string) => {
+    const maskState = useMaskEditorStore.getState()
+    if (maskState.editingItemId === itemId && maskState.aiMaskBitmap) {
+      return maskState.aiMaskBitmap
+    }
+    return undefined
+  }, [])
+
   const fastScrubLiveItemsById = useMemo(() => {
     const map = new Map<string, TimelineItem>()
     for (const track of fastScrubScaledTracks) {
@@ -267,8 +275,7 @@ export function usePreviewCompositionModel({
         canvas: { width: project.width, height: project.height, fps },
         frame: playbackState.previewFrame ?? playbackState.currentFrame,
         getItem: (candidateId) => fastScrubLiveItemsByIdRef.current.get(candidateId),
-        getKeyframes: (candidateId) =>
-          fastScrubKeyframesByItemIdRef.current.get(candidateId),
+        getKeyframes: (candidateId) => fastScrubKeyframesByItemIdRef.current.get(candidateId),
         getLocalPreviewTransform: (candidateId) =>
           useGizmoStore.getState().preview?.[candidateId]?.transform,
       })
@@ -287,10 +294,7 @@ export function usePreviewCompositionModel({
       liveItem.transform !== item.transform
         ? ({ ...item, transform: liveItem.transform } as TimelineItem)
         : item
-    return mergeLiveItemPreview(
-      itemWithLiveTransform,
-      useGizmoStore.getState().preview?.[itemId],
-    )
+    return mergeLiveItemPreview(itemWithLiveTransform, useGizmoStore.getState().preview?.[itemId])
   }, [])
 
   const getLiveKeyframes = useCallback((itemId: string) => {
@@ -315,6 +319,7 @@ export function usePreviewCompositionModel({
     getPreviewEffectsOverride,
     getPreviewCornerPinOverride,
     getPreviewPathVerticesOverride,
+    getPreviewBitmapMaskOverride,
     getLiveItemSnapshot,
     getLiveKeyframes,
   }

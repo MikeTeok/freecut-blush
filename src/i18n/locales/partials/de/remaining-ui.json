@@ -19,6 +19,8 @@
       "addText": "Text hinzufügen",
       "pen": "Stift",
       "penToolHint": "Eine eigene Pfadform mit dem Stiftwerkzeug zeichnen",
+      "aiMask": "KI-Maske",
+      "aiMaskToolHint": "Erstelle eine Form, indem du ein Objekt mit KI auswählst",
       "adjustmentLayer": "Einstellungsebene",
       "blankAdjustmentLayer": "Leere Einstellungsebene",
       "presets": "Vorgaben"

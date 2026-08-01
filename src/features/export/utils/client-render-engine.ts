@@ -639,6 +639,7 @@ export async function createCompositionRenderer(
     getPreviewEffectsOverride?: (itemId: string) => ItemEffect[] | undefined
     getPreviewCornerPinOverride?: (itemId: string) => TimelineItem['cornerPin'] | undefined
     getPreviewPathVerticesOverride?: PreviewPathVerticesOverride
+    getPreviewBitmapMaskOverride?: (itemId: string) => OffscreenCanvas | undefined
     getLiveItemSnapshot?: (itemId: string) => TimelineItem | undefined
     getLiveKeyframes?: (itemId: string) => ItemKeyframes | undefined
     domVideoElementProvider?: (itemId: string) => HTMLVideoElement | null
@@ -675,6 +676,7 @@ export async function createCompositionRenderer(
   const getPreviewEffectsOverride = options.getPreviewEffectsOverride
   const getPreviewCornerPinOverride = options.getPreviewCornerPinOverride
   const getPreviewPathVerticesOverride = options.getPreviewPathVerticesOverride
+  const getPreviewBitmapMaskOverride = options.getPreviewBitmapMaskOverride
   const getLiveItemSnapshot = options.getLiveItemSnapshot
   const getLiveKeyframes = options.getLiveKeyframes
   const domVideoElementProvider = options.domVideoElementProvider
@@ -1249,6 +1251,7 @@ export async function createCompositionRenderer(
     adjustmentLayers,
     getPreviewEffectsOverride,
     getPreviewPathVerticesOverride,
+    getPreviewBitmapMaskOverride,
     subCompRenderData,
     instanceSubCompRenderDataCache: new Map(),
     gpuPipeline: null,
@@ -2033,6 +2036,7 @@ export async function createCompositionRenderer(
         renderMode === 'preview' ? getPreviewPathVerticesOverride : undefined,
         renderMode === 'preview' ? getLiveMaskItem : undefined,
         canvasSettings.getExpressionItem,
+        renderMode === 'preview' ? getPreviewBitmapMaskOverride : undefined,
       )
 
       const frameScene = frameSceneCache.resolve(

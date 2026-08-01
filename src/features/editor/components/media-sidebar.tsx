@@ -431,8 +431,7 @@ export const MediaSidebar = memo(function MediaSidebar() {
     const { tracks, fps, addItemOnNewTrack } = useTimelineStore.getState()
     const { activeTrackId, selectItems, setActiveTrack } = useSelectionStore.getState()
     const currentProject = useProjectStore.getState().currentProject
-    const activeCompositionId =
-      useCompositionNavigationStore.getState().activeCompositionId
+    const activeCompositionId = useCompositionNavigationStore.getState().activeCompositionId
     const activeComposition = activeCompositionId
       ? useCompositionsStore.getState().getComposition(activeCompositionId)
       : undefined
@@ -1012,6 +1011,19 @@ export const MediaSidebar = memo(function MediaSidebar() {
                   </div>
                   <span className="text-[9px] text-muted-foreground group-hover:text-foreground">
                     {t('editor.mediaSidebar.pen')}
+                  </span>
+                </button>
+
+                <button
+                  onClick={() => useMaskEditorStore.getState().startAiMaskMode()}
+                  className="flex flex-col items-center justify-center gap-1 p-2 rounded-lg border border-border bg-secondary/30 hover:bg-secondary/50 hover:border-primary/50 transition-[transform,background-color,border-color,color] duration-150 active:scale-[0.98] group"
+                  title={t('editor.mediaSidebar.aiMaskToolHint')}
+                >
+                  <div className="w-7 h-7 rounded border border-border bg-secondary/50 flex items-center justify-center group-hover:bg-secondary/70">
+                    <WandSparkles className="w-3.5 h-3.5 text-muted-foreground group-hover:text-foreground" />
+                  </div>
+                  <span className="text-[9px] text-muted-foreground group-hover:text-foreground">
+                    {t('editor.mediaSidebar.aiMask')}
                   </span>
                 </button>
               </div>

@@ -14,8 +14,10 @@
 
 import { useCallback, useEffect, memo, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
-import { useMaskEditorStore } from '../stores/mask-editor-store'
+import { useMaskEditorStore, type AiMaskPromptPoint } from '../stores/mask-editor-store'
 import { useGizmoStore } from '../stores/gizmo-store'
+import { usePreviewBridgeStore } from '@/shared/state/preview-bridge'
+import { mobileSamService } from '../services/mobile-sam-service'
 import {
   useItemsStore,
   useKeyframesStore,
@@ -35,6 +37,7 @@ import {
   removeVertex,
 } from '../utils/mask-path-utils'
 import { getPathBounds, fitShapePathToBounds } from '../utils/path-fit'
+import { maskToPathVertices } from '../utils/mask-bitmap-tracer'
 import { useSelectionStore } from '@/shared/state/selection'
 import { usePlaybackStore } from '@/shared/state/playback'
 import type { CoordinateParams, Transform } from '../types/gizmo'
@@ -253,6 +256,18 @@ export const MaskEditorOverlay = memo(function MaskEditorOverlay({
   const setPenDragging = useMaskEditorStore((s) => s.setPenDragging)
   const setPenCursorPos = useMaskEditorStore((s) => s.setPenCursorPos)
   const cancelPenMode = useMaskEditorStore((s) => s.cancelPenMode)
+
+  // AI mask mode state
+  const aiMaskMode = useMaskEditorStore((s) => s.aiMaskMode)
+  const aiPromptPoints = useMaskEditorStore((s) => s.aiPromptPoints)
+  const aiMaskBitmap = useMaskEditorStore((s) => s.aiMaskBitmap)
+  const setAiBusy = useMaskEditorStore((s) => s.setAiBusy)
+  const setAiError = useMaskEditorStore((s) => s.setAiError)
+  const setAiDownloadProgress = useMaskEditorStore((s) => s.setAiDownloadProgress)
+  const setAiMaskBitmap = useMaskEditorStore((s) => s.setAiMaskBitmap)
+  const removeLastAiPromptPoint = useMaskEditorStore((s) => s.removeLastAiPromptPoint)
+  const commitAiMaskRequestVersion = useMaskEditorStore((s) => s.commitAiMaskRequestVersion)
+
   const startTranslate = useGizmoStore((s) => s.startTranslate)
   const updateInteraction = useGizmoStore((s) => s.updateInteraction)
   const endInteraction = useGizmoStore((s) => s.endInteraction)
@@ -525,6 +540,41 @@ export const MaskEditorOverlay = memo(function MaskEditorOverlay({
     [selectionMarquee],
   )
 
+  /** Draw the AI segmentation result as a translucent cyan overlay + prompt markers */
+  const drawAiMask = useCallback(
+    (ctx: CanvasRenderingContext2D) => {
+      if (!aiMaskBitmap) return
+      const scale = getEffectiveScale(coordParams)
+      const w = aiMaskBitmap.width * scale
+      const h = aiMaskBitmap.height * scale
+      ctx.save()
+      ctx.fillStyle = 'rgba(34, 211, 238, 0.45)'
+      ctx.fillRect(0, 0, w, h)
+      ctx.globalCompositeOperation = 'destination-in'
+      ctx.drawImage(aiMaskBitmap, 0, 0, w, h)
+      ctx.restore()
+    },
+    [aiMaskBitmap, coordParams],
+  )
+
+  const drawAiPromptPoints = useCallback(
+    (ctx: CanvasRenderingContext2D) => {
+      const scale = getEffectiveScale(coordParams)
+      for (const point of aiPromptPoints) {
+        const x = point.x * scale
+        const y = point.y * scale
+        ctx.beginPath()
+        ctx.arc(x, y, 7, 0, Math.PI * 2)
+        ctx.fillStyle = point.label === 1 ? 'rgba(34, 211, 238, 0.9)' : 'rgba(244, 63, 94, 0.9)'
+        ctx.fill()
+        ctx.lineWidth = 2
+        ctx.strokeStyle = '#ffffff'
+        ctx.stroke()
+      }
+    },
+    [aiPromptPoints, coordParams],
+  )
+
   /** Draw open pen path with rubber-band line */
   const drawPenPath = useCallback(
     (ctx: CanvasRenderingContext2D) => {
@@ -710,13 +760,28 @@ export const MaskEditorOverlay = memo(function MaskEditorOverlay({
     ctx.scale(dpr, dpr)
     ctx.clearRect(0, 0, playerSize.width, playerSize.height)
 
+    if (aiMaskMode) {
+      drawAiMask(ctx)
+      drawAiPromptPoints(ctx)
+      return
+    }
+
     if (penMode) {
       drawPenPath(ctx)
     } else {
       drawEditPath(ctx)
       drawSelectionMarquee(ctx)
     }
-  }, [drawEditPath, drawPenPath, drawSelectionMarquee, penMode, playerSize])
+  }, [
+    aiMaskMode,
+    drawAiMask,
+    drawAiPromptPoints,
+    drawEditPath,
+    drawPenPath,
+    drawSelectionMarquee,
+    penMode,
+    playerSize,
+  ])
 
   // Redraw on state changes
   useEffect(() => {
@@ -842,6 +907,72 @@ export const MaskEditorOverlay = memo(function MaskEditorOverlay({
       return nextVertices
     },
     [coordParams, getItemScreenBounds, getLiveCoordParams],
+  )
+
+  const runAiSegment = useCallback(
+    async (points: AiMaskPromptPoint[]) => {
+      if (points.length === 0) return
+      setAiBusy(true)
+      setAiError(null)
+      try {
+        const source = await usePreviewBridgeStore.getState().captureCanvasSource?.()
+        if (!source) throw new Error('Preview frame is not available yet')
+        const ctx = source.getContext('2d')
+        if (!ctx) throw new Error('Preview frame context unavailable')
+        const { width, height } = source
+        const imageData = ctx.getImageData(0, 0, width, height)
+        const warmProgress = (received: number, total: number) =>
+          setAiDownloadProgress(total > 0 ? Math.min(1, received / total) : 1)
+        await mobileSamService.warm(warmProgress)
+        setAiDownloadProgress(null)
+        const result = await mobileSamService.segment({
+          rgba: imageData.data,
+          width,
+          height,
+          points,
+        })
+        const bitmap = new OffscreenCanvas(width, height)
+        const bitmapCtx = bitmap.getContext('2d')
+        if (!bitmapCtx) throw new Error('Canvas context unavailable')
+        const outImage = bitmapCtx.createImageData(width, height)
+        for (let i = 0; i < result.alpha.length; i++) {
+          outImage.data[i * 4 + 3] = result.alpha[i]!
+        }
+        bitmapCtx.putImageData(outImage, 0, 0)
+        setAiMaskBitmap(bitmap)
+        setAiDownloadProgress(null)
+      } catch (error) {
+        setAiError(error instanceof Error ? error.message : String(error))
+        setAiDownloadProgress(null)
+      } finally {
+        setAiBusy(false)
+      }
+    },
+    [setAiBusy, setAiDownloadProgress, setAiError, setAiMaskBitmap],
+  )
+
+  const handleAiPointerDown = useCallback(
+    (e: React.PointerEvent) => {
+      e.stopPropagation()
+      e.preventDefault()
+      const canvasPos = screenToCanvas(e.clientX, e.clientY, getLiveCoordParams())
+      const label: 1 | -1 = e.altKey ? -1 : 1
+      const point = { x: Math.round(canvasPos.x), y: Math.round(canvasPos.y), label }
+      const nextPoints = [...useMaskEditorStore.getState().aiPromptPoints, point]
+      useMaskEditorStore.setState({ aiPromptPoints: nextPoints })
+      void runAiSegment(nextPoints)
+    },
+    [getLiveCoordParams, runAiSegment],
+  )
+
+  const handleAiContextMenu = useCallback(
+    (e: React.MouseEvent) => {
+      e.preventDefault()
+      e.stopPropagation()
+      removeLastAiPromptPoint()
+      void runAiSegment(useMaskEditorStore.getState().aiPromptPoints)
+    },
+    [removeLastAiPromptPoint, runAiSegment],
   )
 
   const handlePenPointerDown = useCallback(
@@ -1048,26 +1179,29 @@ export const MaskEditorOverlay = memo(function MaskEditorOverlay({
     [hitTestPenEvent, penVertices, setPenVertices, setHover],
   )
 
-  /** Commit pen vertices as a new ShapeItem with shapeType='path'. */
-  const commitShapePenPath = useCallback(
-    (verts: MaskVertex[], closed: boolean) => {
+  /**
+   * Create a new `shapeType === 'path'` ShapeItem from normalized (0-1 canvas)
+   * vertices, fitting the geometry into a bounding box. Places the item at the
+   * playhead track (creating a top track when needed) and selects it. Shared by
+   * the shape pen and AI mask flows.
+   */
+  const createPathShapeItem = useCallback(
+    (
+      verts: MaskVertex[],
+      closed: boolean,
+      projectSize: { width: number; height: number },
+    ): ShapeItem | null => {
       const bounds = getPathBounds(verts)
-      if (!bounds) {
-        cancelPenMode()
-        return
-      }
+      if (!bounds) return null
 
-      const { width: canvasW, height: canvasH } = coordParams.projectSize
+      const { width: canvasW, height: canvasH } = projectSize
       const spanX = Math.max(bounds.maxX - bounds.minX, 2 / canvasW)
       const spanY = Math.max(bounds.maxY - bounds.minY, 2 / canvasH)
       const bboxW = spanX * canvasW
       const bboxH = spanY * canvasH
 
       // Prevent degenerate shapes
-      if (bboxW < 2 || bboxH < 2) {
-        cancelPenMode()
-        return
-      }
+      if (bboxW < 2 || bboxH < 2) return null
 
       // Convert vertices to shape-local normalized coords (0-1 within bounding box)
       const localVerts: MaskVertex[] = verts.map((v) => ({
@@ -1099,10 +1233,7 @@ export const MaskEditorOverlay = memo(function MaskEditorOverlay({
         itemType: 'shape',
       })
 
-      if (!placement) {
-        cancelPenMode()
-        return
-      }
+      if (!placement) return null
 
       const placementTrackId = placement.trackId
       const eligibleTracks = resolveEffectiveTrackStates(tracks).filter(
@@ -1183,11 +1314,59 @@ export const MaskEditorOverlay = memo(function MaskEditorOverlay({
       addItem(shapeItem)
       setActiveTrack(shapeItem.trackId)
       selectItems([shapeItem.id])
+      return shapeItem
+    },
+    [],
+  )
+
+  /** Commit pen vertices as a new ShapeItem with shapeType='path'. */
+  const commitShapePenPath = useCallback(
+    (verts: MaskVertex[], closed: boolean) => {
+      const shapeItem = createPathShapeItem(verts, closed, coordParams.projectSize)
+      if (!shapeItem) {
+        cancelPenMode()
+        return
+      }
       useTimelineViewportStore.getState().requestScrollToFrame(shapeItem.from)
       stopEditing()
     },
-    [coordParams, cancelPenMode, stopEditing],
+    [createPathShapeItem, coordParams.projectSize, cancelPenMode, stopEditing],
   )
+
+  /** Commit the latest AI mask bitmap into a new path shape and enter path edit. */
+  const commitAiMaskToShape = useCallback(() => {
+    const state = useMaskEditorStore.getState()
+    const stopAi = () => useMaskEditorStore.getState().stopAiMaskMode()
+    const bitmap = state.aiMaskBitmap
+    if (!bitmap) {
+      stopAi()
+      return
+    }
+    const ctx = bitmap.getContext('2d')
+    if (!ctx) {
+      stopAi()
+      return
+    }
+    const imageData = ctx.getImageData(0, 0, bitmap.width, bitmap.height)
+    const verts = maskToPathVertices({
+      width: imageData.width,
+      height: imageData.height,
+      data: imageData.data,
+    })
+    if (verts.length < 3) {
+      toast.error('Could not trace the AI mask into a shape')
+      stopAi()
+      return
+    }
+    const shapeItem = createPathShapeItem(verts, true, coordParams.projectSize)
+    if (!shapeItem) {
+      toast.error('Could not place the AI mask shape on the timeline')
+      stopAi()
+      return
+    }
+    useTimelineViewportStore.getState().requestScrollToFrame(shapeItem.from)
+    useMaskEditorStore.getState().startEditing(shapeItem.id)
+  }, [createPathShapeItem, coordParams.projectSize])
 
   /** Finish pen mode as an open path. Clicking the first anchor closes instead. */
   const finishPenMode = useCallback(() => {
@@ -1220,12 +1399,14 @@ export const MaskEditorOverlay = memo(function MaskEditorOverlay({
   const lastHandledFinishRequestRef = useRef(0)
   const lastHandledCancelRequestRef = useRef(0)
   const lastHandledConvertRequestRef = useRef(0)
+  const lastHandledAiCommitRequestRef = useRef(0)
 
   useEffect(() => {
     lastHandledFinishRequestRef.current = 0
     lastHandledCancelRequestRef.current = 0
     lastHandledConvertRequestRef.current = 0
-  }, [editingItemId, penMode])
+    lastHandledAiCommitRequestRef.current = 0
+  }, [editingItemId, penMode, aiMaskMode])
 
   useEffect(() => {
     if (!penMode) return
@@ -1242,6 +1423,14 @@ export const MaskEditorOverlay = memo(function MaskEditorOverlay({
     lastHandledCancelRequestRef.current = cancelPenRequestVersion
     cancelCurrentPenMode()
   }, [penMode, cancelPenRequestVersion, cancelCurrentPenMode])
+
+  useEffect(() => {
+    if (!aiMaskMode) return
+    if (commitAiMaskRequestVersion === 0) return
+    if (commitAiMaskRequestVersion === lastHandledAiCommitRequestRef.current) return
+    lastHandledAiCommitRequestRef.current = commitAiMaskRequestVersion
+    commitAiMaskToShape()
+  }, [aiMaskMode, commitAiMaskRequestVersion, commitAiMaskToShape])
 
   const popLastPenVertex = useCallback(() => {
     const state = useMaskEditorStore.getState()
@@ -2014,11 +2203,15 @@ export const MaskEditorOverlay = memo(function MaskEditorOverlay({
           pointerEvents: 'auto',
           cursor,
         }}
-        onPointerDown={penMode ? handlePenPointerDown : handleEditPointerDown}
+        onPointerDown={
+          aiMaskMode ? handleAiPointerDown : penMode ? handlePenPointerDown : handleEditPointerDown
+        }
         onPointerMove={penMode ? handlePenPointerMove : handleEditPointerMove}
         onPointerUp={penMode ? handlePenPointerUp : handleEditPointerUp}
-        onContextMenu={penMode ? handlePenContextMenu : handleEditContextMenu}
-        onDoubleClick={penMode ? undefined : handleEditDoubleClick}
+        onContextMenu={
+          aiMaskMode ? handleAiContextMenu : penMode ? handlePenContextMenu : handleEditContextMenu
+        }
+        onDoubleClick={aiMaskMode ? undefined : penMode ? undefined : handleEditDoubleClick}
       />
     </div>
   )

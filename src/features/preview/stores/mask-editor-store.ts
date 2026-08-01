@@ -9,6 +9,13 @@
 import { create } from 'zustand'
 import type { MaskVertex } from '@/types/masks'
 
+/** A single MobileSAM prompt point, in canvas (project) pixel coords. */
+export interface AiMaskPromptPoint {
+  x: number
+  y: number
+  label: 1 | -1
+}
+
 function normalizeVertexSelection(vertexIndices: number[]): number[] {
   return [...new Set(vertexIndices.filter((index) => Number.isInteger(index) && index >= 0))].sort(
     (a, b) => a - b,
@@ -56,6 +63,22 @@ interface MaskEditorState {
   convertSelectedVertexRequestVersion: number
   /** Requested knot conversion mode for the current selection */
   convertSelectedVertexRequestMode: 'corner' | 'bezier' | null
+
+  // --- AI mask mode ---
+  /** Whether AI (MobileSAM) mask mode is active for the current editing item */
+  aiMaskMode: boolean
+  /** Prompt points the user has placed in the current AI session */
+  aiPromptPoints: AiMaskPromptPoint[]
+  /** Latest MobileSAM result, in project-resolution canvas space */
+  aiMaskBitmap: OffscreenCanvas | null
+  /** Whether the AI model is downloading/compiling or a segment is running */
+  aiBusy: boolean
+  /** Human-readable AI error, or null when idle */
+  aiError: string | null
+  /** Download progress of the MobileSAM weights (0..1), or null */
+  aiDownloadProgress: number | null
+  /** Monotonic counter to request committing the AI mask into a shape */
+  commitAiMaskRequestVersion: number
 }
 
 interface MaskEditorActions {
@@ -105,6 +128,28 @@ interface MaskEditorActions {
   requestCancelPenMode: () => void
   /** Request converting the selected knot selection from external UI */
   requestConvertSelectedVertex: (mode: 'corner' | 'bezier') => void
+
+  // --- AI mask mode ---
+  /** Enter AI mask mode for the current editing item */
+  startAiMaskMode: () => void
+  /** Exit AI mask mode and clear its transient state */
+  stopAiMaskMode: () => void
+  /** Set the AI session busy/idle flag */
+  setAiBusy: (busy: boolean) => void
+  /** Set the AI session error string (null clears) */
+  setAiError: (error: string | null) => void
+  /** Set the MobileSAM download progress (0..1, null clears) */
+  setAiDownloadProgress: (progress: number | null) => void
+  /** Set the latest AI mask bitmap */
+  setAiMaskBitmap: (bitmap: OffscreenCanvas | null) => void
+  /** Append a prompt point to the current AI session */
+  addAiPromptPoint: (point: AiMaskPromptPoint) => void
+  /** Remove the most recently placed prompt point */
+  removeLastAiPromptPoint: () => void
+  /** Reset AI prompt points + result without leaving AI mode */
+  resetAiSession: () => void
+  /** Request committing the current AI mask into a new shape */
+  requestCommitAiMask: () => void
 }
 
 export const useMaskEditorStore = create<MaskEditorState & MaskEditorActions>()((set, get) => ({
@@ -126,6 +171,13 @@ export const useMaskEditorStore = create<MaskEditorState & MaskEditorActions>()(
   cancelPenRequestVersion: 0,
   convertSelectedVertexRequestVersion: 0,
   convertSelectedVertexRequestMode: null,
+  aiMaskMode: false,
+  aiPromptPoints: [],
+  aiMaskBitmap: null,
+  aiBusy: false,
+  aiError: null,
+  aiDownloadProgress: null,
+  commitAiMaskRequestVersion: 0,
 
   startEditing: (itemId) =>
     set({
@@ -147,6 +199,13 @@ export const useMaskEditorStore = create<MaskEditorState & MaskEditorActions>()(
       cancelPenRequestVersion: 0,
       convertSelectedVertexRequestVersion: 0,
       convertSelectedVertexRequestMode: null,
+      aiMaskMode: false,
+      aiPromptPoints: [],
+      aiMaskBitmap: null,
+      aiBusy: false,
+      aiError: null,
+      aiDownloadProgress: null,
+      commitAiMaskRequestVersion: 0,
     }),
 
   stopEditing: () =>
@@ -169,6 +228,13 @@ export const useMaskEditorStore = create<MaskEditorState & MaskEditorActions>()(
       cancelPenRequestVersion: 0,
       convertSelectedVertexRequestVersion: 0,
       convertSelectedVertexRequestMode: null,
+      aiMaskMode: false,
+      aiPromptPoints: [],
+      aiMaskBitmap: null,
+      aiBusy: false,
+      aiError: null,
+      aiDownloadProgress: null,
+      commitAiMaskRequestVersion: 0,
     }),
 
   selectVertices: (vertexIndices, primaryIndex = null) =>
@@ -244,6 +310,13 @@ export const useMaskEditorStore = create<MaskEditorState & MaskEditorActions>()(
       cancelPenRequestVersion: 0,
       convertSelectedVertexRequestVersion: 0,
       convertSelectedVertexRequestMode: null,
+      aiMaskMode: false,
+      aiPromptPoints: [],
+      aiMaskBitmap: null,
+      aiBusy: false,
+      aiError: null,
+      aiDownloadProgress: null,
+      commitAiMaskRequestVersion: 0,
     }),
 
   cancelPenMode: () =>
@@ -331,5 +404,98 @@ export const useMaskEditorStore = create<MaskEditorState & MaskEditorActions>()(
     set((state) => ({
       convertSelectedVertexRequestVersion: state.convertSelectedVertexRequestVersion + 1,
       convertSelectedVertexRequestMode: mode,
+    })),
+
+  // --- AI mask mode ---
+  /**
+   * Enter standalone AI mask mode. Unlike the old flow (launched from path
+   * editing), AI mask creates a brand-new shape from a segmentation, so it
+   * does not need (or keep) an editing item — the overlay runs over the full
+   * canvas, mirroring shape pen mode.
+   */
+  startAiMaskMode: () =>
+    set((state) => {
+      if (state.aiMaskMode) return state
+      return {
+        isEditing: true,
+        editingItemId: null,
+        selectedVertexIndices: [],
+        selectedVertexIndex: null,
+        draggingVertexIndex: null,
+        draggingHandle: null,
+        previewVertices: null,
+        hoveredVertexIndex: null,
+        hoveredHandle: null,
+        penMode: false,
+        shapePenMode: false,
+        penVertices: [],
+        penDraggingHandle: false,
+        penCursorPos: null,
+        finishPenRequestVersion: 0,
+        cancelPenRequestVersion: 0,
+        convertSelectedVertexRequestVersion: 0,
+        convertSelectedVertexRequestMode: null,
+        aiMaskMode: true,
+        aiPromptPoints: [],
+        aiMaskBitmap: null,
+        aiError: null,
+        aiDownloadProgress: null,
+        aiBusy: false,
+      }
+    }),
+
+  stopAiMaskMode: () =>
+    set({
+      aiMaskMode: false,
+      aiPromptPoints: [],
+      aiMaskBitmap: null,
+      aiBusy: false,
+      aiError: null,
+      aiDownloadProgress: null,
+      commitAiMaskRequestVersion: 0,
+      isEditing: false,
+      editingItemId: null,
+      selectedVertexIndices: [],
+      selectedVertexIndex: null,
+      draggingVertexIndex: null,
+      draggingHandle: null,
+      previewVertices: null,
+      hoveredVertexIndex: null,
+      hoveredHandle: null,
+      penMode: false,
+      shapePenMode: false,
+      penVertices: [],
+      penDraggingHandle: false,
+      penCursorPos: null,
+      finishPenRequestVersion: 0,
+      cancelPenRequestVersion: 0,
+      convertSelectedVertexRequestVersion: 0,
+      convertSelectedVertexRequestMode: null,
+    }),
+
+  setAiBusy: (busy) => set({ aiBusy: busy }),
+
+  setAiError: (error) => set({ aiError: error }),
+
+  setAiDownloadProgress: (progress) => set({ aiDownloadProgress: progress }),
+
+  setAiMaskBitmap: (bitmap) => set({ aiMaskBitmap: bitmap }),
+
+  addAiPromptPoint: (point) =>
+    set((state) => ({ aiPromptPoints: [...state.aiPromptPoints, point] })),
+
+  removeLastAiPromptPoint: () =>
+    set((state) => ({ aiPromptPoints: state.aiPromptPoints.slice(0, -1) })),
+
+  resetAiSession: () =>
+    set({
+      aiPromptPoints: [],
+      aiMaskBitmap: null,
+      aiError: null,
+    }),
+
+  requestCommitAiMask: () =>
+    set((state) => ({
+      commitAiMaskRequestVersion: state.commitAiMaskRequestVersion + 1,
     })),
 }))

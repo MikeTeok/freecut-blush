@@ -695,6 +695,8 @@
       "addText": "Add text",
       "pen": "Pen",
       "penToolHint": "Draw a custom path shape with the pen tool",
+      "aiMask": "AI Mask",
+      "aiMaskToolHint": "Create a shape by selecting an object with AI",
       "adjustmentLayer": "Adjustment layer",
       "blankAdjustmentLayer": "Blank adjustment layer",
       "presets": "Presets"

@@ -191,6 +191,11 @@ class FilmstripCacheService {
     if (this.prewarmStarted) return
     this.prewarmStarted = true
 
+    if (typeof Worker === 'undefined') {
+      this.prewarmStarted = false
+      return
+    }
+
     let worker: Worker
     try {
       worker = this.acquireWorker()

@@ -36,6 +36,7 @@ import {
   getSwappedShapeLinearGradientColors,
 } from '@/shared/graphics/shapes/linear-gradient'
 import { getPathClosureUpdates, getShapeSectionControlVisibility } from './shape-section-visibility'
+import { convertShapeToPath } from '@/features/editor/utils/convert-shape-to-path'
 
 // Shape type options
 const SHAPE_TYPE_OPTIONS: { value: ShapeType; labelKey: string }[] = [
@@ -227,8 +228,8 @@ export function ShapeSection({ items }: ShapeSectionProps) {
   const showDirection = sharedValues?.shapeType === 'triangle'
   const showPoints = sharedValues?.shapeType && ['star', 'polygon'].includes(sharedValues.shapeType)
   const showInnerRadius = sharedValues?.shapeType === 'star'
-  const singlePathShape =
-    shapeItems.length === 1 && shapeItems[0]?.shapeType === 'path' ? shapeItems[0] : null
+  const singleShape = shapeItems.length === 1 ? shapeItems[0] : null
+  const singlePathShape = singleShape?.shapeType === 'path' ? singleShape : null
   const singlePathKeyframes = useKeyframesStore((state) =>
     singlePathShape ? state.keyframesByItemId[singlePathShape.id] : undefined,
   )
@@ -457,6 +458,23 @@ export function ShapeSection({ items }: ShapeSectionProps) {
     },
     [clearPreview, updateShapeItems],
   )
+
+  const handleEditPathToggle = useCallback(() => {
+    if (!singleShape) return
+    if (isEditingPathShape) {
+      stopEditing()
+      return
+    }
+    if (singleShape.shapeType !== 'path') {
+      const update = convertShapeToPath(singleShape)
+      if (!update) {
+        toast.error('This shape cannot be converted into an editable path.')
+        return
+      }
+      updateItem(singleShape.id, update)
+    }
+    startEditing(singleShape.id)
+  }, [isEditingPathShape, singleShape, startEditing, stopEditing, updateItem])
 
   const handlePathClosedChange = useCallback(
     (closed: boolean) => {
@@ -722,7 +740,7 @@ export function ShapeSection({ items }: ShapeSectionProps) {
         </Select>
       </PropertyRow>
 
-      {singlePathShape && (
+      {singleShape && (
         <>
           <PropertyRow label={t('editor.shapeSection.path')}>
             <div className="flex items-center gap-2 w-full">
@@ -730,18 +748,12 @@ export function ShapeSection({ items }: ShapeSectionProps) {
                 variant={isEditingPathShape ? 'default' : 'outline'}
                 size="sm"
                 className="h-7 text-xs gap-1.5"
-                onClick={() => {
-                  if (isEditingPathShape) {
-                    stopEditing()
-                  } else {
-                    startEditing(singlePathShape.id)
-                  }
-                }}
+                onClick={handleEditPathToggle}
               >
                 <MousePointer2 className="w-3.5 h-3.5" />
                 {isEditingPathShape ? t('common.done') : t('editor.shapeSection.editPath')}
               </Button>
-              {!controlVisibility.isMaskOnly && (
+              {singlePathShape && !controlVisibility.isMaskOnly && (
                 <Button
                   variant="outline"
                   size="sm"
@@ -753,7 +765,7 @@ export function ShapeSection({ items }: ShapeSectionProps) {
               )}
             </div>
           </PropertyRow>
-          {controlVisibility.showPathClosure && (
+          {singlePathShape && controlVisibility.showPathClosure && (
             <>
               <PropertyRow label={t('editor.shapeSection.pathClosure')}>
                 <div className="grid w-full grid-cols-2 gap-1">
@@ -784,7 +796,8 @@ export function ShapeSection({ items }: ShapeSectionProps) {
               </p>
             </>
           )}
-          {isEditingPathShape &&
+          {singlePathShape &&
+            isEditingPathShape &&
             !controlVisibility.isMaskOnly &&
             sharedValues.pathClosed === true && (
               <PropertyRow label={t('editor.shapeSection.firstVertex')}>
