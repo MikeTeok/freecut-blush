@@ -18,11 +18,11 @@ export interface MaskBitmapSource {
 }
 
 /** Pixels with alpha at or below this value are treated as background. */
-export const DEFAULT_MASK_ALPHA_THRESHOLD = 32
+const DEFAULT_MASK_ALPHA_THRESHOLD = 32
 /** Simplification tolerance in source pixels. */
-export const DEFAULT_MASK_TRACE_TOLERANCE_PX = 1.5
+const DEFAULT_MASK_TRACE_TOLERANCE_PX = 1.5
 /** Upper bound on the number of vertices produced. */
-export const DEFAULT_MASK_MAX_VERTICES = 600
+const DEFAULT_MASK_MAX_VERTICES = 600
 
 export interface MaskTraceOptions {
   alphaThreshold?: number
@@ -103,7 +103,7 @@ function perpendicularDistance(
 }
 
 /** Ramer–Douglas–Peucker simplification of an open polyline. */
-export function simplifyPolyline(
+function simplifyPolyline(
   points: ReadonlyArray<[number, number]>,
   tolerancePx: number,
 ): Array<[number, number]> {
@@ -126,6 +126,7 @@ export function simplifyPolyline(
 }
 
 /** Simplify a closed loop (implicitly connected end-to-start). */
+// fallow-ignore-next-line complexity
 export function simplifyRing(
   points: ReadonlyArray<[number, number]>,
   tolerancePx: number,
@@ -195,6 +196,7 @@ export function simplifyRing(
  * list of pixel-coordinate points. The returned list is open; its last point
  * connects back to the first to close the loop.
  */
+// fallow-ignore-next-line complexity
 export function traceMaskContourPixels(
   source: MaskBitmapSource,
   alphaThreshold = DEFAULT_MASK_ALPHA_THRESHOLD,

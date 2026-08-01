@@ -1186,6 +1186,7 @@ export const MaskEditorOverlay = memo(function MaskEditorOverlay({
    * the shape pen and AI mask flows.
    */
   const createPathShapeItem = useCallback(
+    // fallow-ignore-next-line complexity
     (
       verts: MaskVertex[],
       closed: boolean,

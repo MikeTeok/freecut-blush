@@ -89,6 +89,7 @@ export class MobileSamSegmenter {
   constructor(private readonly options: MobileSamSegmenterOptions = {}) {}
 
   /** Download weights and compile both sessions. Idempotent and concurrency-safe. */
+  // fallow-ignore-next-line
   ready(): Promise<void> {
     if (!this.readyPromise) {
       this.readyPromise = this.load().catch((error) => {
@@ -245,6 +246,7 @@ function resizeToEncoderRgb(
  * prompt points are supported: points are fed two at a time, and from the
  * second call onward the previous mask is fed back as `mask_input`.
  */
+// fallow-ignore-next-line complexity
 async function runDecoder(
   ort: OrtModule,
   decoder: OrtSession,

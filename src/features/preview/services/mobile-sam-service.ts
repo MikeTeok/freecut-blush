@@ -17,14 +17,14 @@ import type { MobileSamWorkerRequest, MobileSamWorkerResponse } from '../workers
 
 const logger = createLogger('MobileSamService')
 
-export interface MobileSamSegmentInput {
+interface MobileSamSegmentInput {
   rgba: Uint8ClampedArray
   width: number
   height: number
   points: MobileSamPromptPoint[]
 }
 
-export interface MobileSamSegmentOutput {
+interface MobileSamSegmentOutput {
   width: number
   height: number
   alpha: Uint8Array
@@ -36,7 +36,7 @@ interface PendingRequest {
   type: 'load' | 'segment'
 }
 
-export class MobileSamService {
+class MobileSamService {
   private readonly pendingRequests = new Map<string, PendingRequest>()
   private readonly queue: Array<() => Promise<void>> = []
   private draining = false

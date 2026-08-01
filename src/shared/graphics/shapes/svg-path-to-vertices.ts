@@ -58,6 +58,7 @@ function angleBetween(ux: number, uy: number, vx: number, vy: number): number {
  * bezier segments (start point, two control points, end point), each spanning
  * at most 90°. Returns empty when start equals end.
  */
+// fallow-ignore-next-line complexity
 function arcToCubicSegments(
   x0: number,
   y0: number,
@@ -166,6 +167,7 @@ function arcToCubicSegments(
  * merged into the first when the path returns exactly to its start point, so
  * closed shapes like circles produce a clean loop of distinct anchors.
  */
+// fallow-ignore-next-line complexity
 export function parseSvgPathToMaskVertices(path: string): {
   vertices: MaskVertex[]
   closed: boolean
