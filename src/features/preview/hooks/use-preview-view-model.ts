@@ -70,6 +70,8 @@ export function usePreviewViewModel({
   const hasSlide4Up = useSlideEditPreviewStore((s) => Boolean(s.itemId))
   const isMaskEditingActive = useMaskEditorStore((s) => s.isEditing)
   const zoom = usePlaybackStore((s) => s.zoom)
+  const panX = usePlaybackStore((s) => s.panX)
+  const panY = usePlaybackStore((s) => s.panY)
   const useProxy = usePlaybackStore((s) => s.useProxy)
   const busAudioEq = usePlaybackStore((s) => s.busAudioEq)
   const blobUrlVersion = useBlobUrlVersion()
@@ -145,7 +147,10 @@ export function usePreviewViewModel({
     // isMaskEditingActive: entering/leaving mask edit mounts a toolbar below
     // the preview, moving the player without resizing it — ResizeObserver
     // can't see that, so re-measure when the mode toggles.
-  }, [suspendOverlay, isMaskEditingActive])
+    // panX/panY: panning moves the player via a CSS transform, which
+    // ResizeObserver can't see either — re-measure so overlay math always has
+    // a live player rect.
+  }, [suspendOverlay, isMaskEditingActive, panX, panY])
 
   const handleBackgroundClick = useCallback(
     (event: React.MouseEvent) => {

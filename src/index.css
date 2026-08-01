@@ -10,6 +10,11 @@ body.canvas-translate-cursor-not-allowed * {
   cursor: not-allowed !important;
 }
 
+body.preview-panning,
+body.preview-panning * {
+  cursor: grabbing !important;
+}
+
 @custom-variant dark (&:is(.dark *));
 
 /* Shared easing tokens — strong custom curves, not the weak CSS built-ins.

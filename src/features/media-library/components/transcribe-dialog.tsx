@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Loader2, Square } from 'lucide-react'
+import { CircleCheck, CircleX, Loader2, Square } from 'lucide-react'
 import {
   Dialog,
   DialogContent,
@@ -37,7 +37,7 @@ import {
   WHISPER_QUANTIZATION_OPTIONS,
 } from '@/shared/utils/whisper-settings'
 import type { MediaTranscriptModel, MediaTranscriptQuantization } from '@/types/storage'
-import { VIBE_TRANSCRIPTION_MODEL } from '../transcription/vibe-adapter'
+import { DEFAULT_VIBE_BRIDGE_URL, VIBE_TRANSCRIPTION_MODEL } from '../transcription/vibe-adapter'
 
 export interface TranscribeDialogValues {
   model: MediaTranscriptModel
@@ -84,12 +84,36 @@ export function TranscribeDialog({
   const transcriptionProvider = useSettingsStore((s) => s.transcriptionProvider)
   const vibeBinaryPath = useSettingsStore((s) => s.vibeBinaryPath)
   const vibeModelPath = useSettingsStore((s) => s.vibeModelPath)
+  const vibeBridgeUrl = useSettingsStore((s) => s.vibeBridgeUrl)
   const clearMediaSkimPreview = useEditorStore((s) => s.clearMediaSkimPreview)
   const clearCompoundClipSkimPreview = useEditorStore((s) => s.clearCompoundClipSkimPreview)
   const beginTranscriptionDialog = useEditorStore((s) => s.beginTranscriptionDialog)
   const endTranscriptionDialog = useEditorStore((s) => s.endTranscriptionDialog)
 
   const usesVibeProvider = transcriptionProvider === 'vibe'
+
+  const [bridgeStatus, setBridgeStatus] = useState<'checking' | 'online' | 'offline'>('checking')
+
+  useEffect(() => {
+    if (!open || !usesVibeProvider) return
+    let cancelled = false
+    const check = async () => {
+      const baseUrl = (vibeBridgeUrl ?? DEFAULT_VIBE_BRIDGE_URL).replace(/\/+$/, '')
+      setBridgeStatus('checking')
+      try {
+        const response = await fetch(`${baseUrl}/health`, { signal: AbortSignal.timeout(4000) })
+        if (!cancelled) setBridgeStatus(response.ok ? 'online' : 'offline')
+      } catch {
+        if (!cancelled) setBridgeStatus('offline')
+      }
+    }
+    void check()
+    const interval = setInterval(check, 8000)
+    return () => {
+      cancelled = true
+      clearInterval(interval)
+    }
+  }, [open, usesVibeProvider, vibeBridgeUrl])
 
   const modelOptions = useMemo(() => getMediaTranscriptionModelOptions(), [])
 
@@ -200,6 +224,30 @@ export function TranscribeDialog({
                     {t('media.transcribe.vibeConfigHint')}
                   </p>
                 </div>
+              </div>
+
+              <div
+                role="status"
+                className={cn(
+                  'flex items-center gap-2 rounded-md border px-3 py-2 text-xs',
+                  bridgeStatus === 'online' &&
+                    'border-emerald-500/40 bg-emerald-500/10 text-emerald-400',
+                  bridgeStatus === 'offline' &&
+                    'border-destructive/40 bg-destructive/10 text-destructive',
+                  bridgeStatus === 'checking' &&
+                    'border-border bg-secondary/40 text-muted-foreground',
+                )}
+              >
+                {bridgeStatus === 'checking' && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                {bridgeStatus === 'online' && <CircleCheck className="h-3.5 w-3.5" />}
+                {bridgeStatus === 'offline' && <CircleX className="h-3.5 w-3.5" />}
+                {bridgeStatus === 'online' && <span>{t('media.transcribe.vibeBridgeOnline')}</span>}
+                {bridgeStatus === 'checking' && (
+                  <span>{t('media.transcribe.vibeBridgeChecking')}</span>
+                )}
+                {bridgeStatus === 'offline' && (
+                  <span>{t('media.transcribe.vibeBridgeOffline')}</span>
+                )}
               </div>
 
               {!vibeBinaryPath.trim() && !vibeModelPath.trim() && !isRunning && (

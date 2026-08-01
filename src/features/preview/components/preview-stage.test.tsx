@@ -5,6 +5,12 @@ import type { CompositionInputProps } from '@/types/export'
 
 const playbackState = vi.hoisted(() => ({
   useProxy: true,
+  panX: 0,
+  panY: 0,
+  zoom: -1,
+  setPan: vi.fn(),
+  resetPan: vi.fn(),
+  setZoom: vi.fn(),
 }))
 
 vi.mock('@/shared/state/playback', () => {
@@ -84,6 +90,7 @@ function renderSplitPreviewStage(overrides: Partial<Parameters<typeof PreviewSta
       needsOverflow={false}
       playerSize={{ width: 1280, height: 720 }}
       playerRenderSize={{ width: 1280, height: 720 }}
+      projectSize={{ width: 1280, height: 720 }}
       totalFrames={120}
       fps={30}
       isResolving={false}
@@ -170,11 +177,7 @@ describe('getPreviewDisplayEdgePadding', () => {
       getPreviewDisplayEdgePadding({ width: 928, height: 522 }, { width: 1920, height: 1080 }, 1),
     ).toBe(5)
     expect(
-      getPreviewDisplayEdgePadding(
-        { width: 1056, height: 594 },
-        { width: 1920, height: 1080 },
-        1,
-      ),
+      getPreviewDisplayEdgePadding({ width: 1056, height: 594 }, { width: 1920, height: 1080 }, 1),
     ).toBe(4)
   })
 
@@ -188,17 +191,13 @@ describe('getPreviewDisplayEdgePadding', () => {
         { width: 1024, height: 576 },
         { width: 1432, height: 805.5 },
       ]) {
-        const padding = getPreviewDisplayEdgePadding(
-          playerSize,
-          renderSize,
-          devicePixelRatio,
-        )
-        expect((padding * playerSize.width * devicePixelRatio) / renderSize.width).toBeGreaterThanOrEqual(
-          2 - 1e-3,
-        )
-        expect((padding * playerSize.height * devicePixelRatio) / renderSize.height).toBeGreaterThanOrEqual(
-          2 - 1e-3,
-        )
+        const padding = getPreviewDisplayEdgePadding(playerSize, renderSize, devicePixelRatio)
+        expect(
+          (padding * playerSize.width * devicePixelRatio) / renderSize.width,
+        ).toBeGreaterThanOrEqual(2 - 1e-3)
+        expect(
+          (padding * playerSize.height * devicePixelRatio) / renderSize.height,
+        ).toBeGreaterThanOrEqual(2 - 1e-3)
       }
     }
   })
@@ -217,6 +216,7 @@ describe('PreviewStage', () => {
         needsOverflow={false}
         playerSize={{ width: 1280, height: 720 }}
         playerRenderSize={{ width: 1280, height: 720 }}
+        projectSize={{ width: 1280, height: 720 }}
         totalFrames={120}
         fps={30}
         isResolving={false}
@@ -242,6 +242,7 @@ describe('PreviewStage', () => {
         needsOverflow={false}
         playerSize={{ width: 1280, height: 720 }}
         playerRenderSize={{ width: 1280, height: 720 }}
+        projectSize={{ width: 1280, height: 720 }}
         totalFrames={120}
         fps={30}
         isResolving={false}

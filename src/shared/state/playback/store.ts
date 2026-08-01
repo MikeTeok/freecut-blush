@@ -46,16 +46,11 @@ function enterNormalPlayback(state: PlaybackState & PlaybackActions) {
   }
 }
 
-function enterShuttlePlayback(
-  state: PlaybackState & PlaybackActions,
-  direction: -1 | 1,
-) {
+function enterShuttlePlayback(state: PlaybackState & PlaybackActions, direction: -1 | 1) {
   const playbackState = enterPlayback(state)
   return {
     ...(playbackState === state ? {} : playbackState),
-    playbackRate: state.isPlaying
-      ? getNextShuttleRate(state.playbackRate, direction)
-      : direction,
+    playbackRate: state.isPlaying ? getNextShuttleRate(state.playbackRate, direction) : direction,
     transportMode: 'shuttle' as const,
   }
 }
@@ -67,11 +62,7 @@ function updatePausedScrubFrame(
 ) {
   const nextFrame = normalizeFrame(frame)
   const nextItemId = itemId ?? null
-  if (
-    state.currentFrame === nextFrame &&
-    state.previewFrame === null &&
-    nextItemId === null
-  ) {
+  if (state.currentFrame === nextFrame && state.previewFrame === null && nextItemId === null) {
     return state
   }
   if (
@@ -107,6 +98,8 @@ export const usePlaybackStore = create<PlaybackState & PlaybackActions>()(
       masterBusDb: 0,
       busAudioEq: undefined,
       zoom: -1, // -1 = auto-fit, positive values = specific zoom percentage
+      panX: 0,
+      panY: 0,
       previewFrame: null,
       previewFrameEpoch: 0,
       frameUpdateEpoch: 0,
@@ -175,6 +168,8 @@ export const usePlaybackStore = create<PlaybackState & PlaybackActions>()(
         set({ masterBusDb: Math.max(-60, Math.min(12, masterBusDb)) }),
       setBusAudioEq: (busAudioEq) => set({ busAudioEq }),
       setZoom: (zoom) => set({ zoom }),
+      setPan: (panX, panY) => set({ panX, panY }),
+      resetPan: () => set({ panX: 0, panY: 0 }),
       setPreviewFrame: (frame, itemId) =>
         set((state) => {
           if (state.isPlaying && frame !== null) return state

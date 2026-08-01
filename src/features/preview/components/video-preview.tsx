@@ -885,6 +885,7 @@ const VideoPreviewBase = memo(function VideoPreviewBase({
       needsOverflow={needsOverflow}
       playerSize={playerSize}
       playerRenderSize={playerRenderSize}
+      projectSize={{ width: project.width, height: project.height }}
       totalFrames={totalFrames}
       fps={fps}
       initialFrame={initialPlayheadFrameRef.current ?? 0}

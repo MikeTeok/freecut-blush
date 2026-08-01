@@ -2,6 +2,7 @@ import { defineConfig, lazyPlugins } from 'vite-plus'
 import type { Plugin } from 'vite-plus'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
+import { spawn } from 'node:child_process'
 import { readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -55,6 +56,59 @@ const toolIgnorePatterns = [
   'scripts/**',
 ]
 
+// Browsers cannot spawn processes, so the Vibe transcription bridge
+// (scripts/vibe-bridge.mjs) must be started by something outside the page.
+// Dev server spawns it alongside Vite and shuts it down on exit so clicking
+// "Generate Caption" with the Vibe provider just works. Set FREECUT_NO_VIBE_BRIDGE=1
+// to opt out (e.g. when running your own bridge instance).
+const VIBE_BRIDGE_HEALTH_URL = 'http://127.0.0.1:8765/health'
+
+function vibeBridgePlugin(): Plugin {
+  let bridgeProc: ReturnType<typeof spawn> | null = null
+
+  return {
+    name: 'freecut-vibe-bridge',
+    apply: 'serve',
+    configureServer(server) {
+      server.httpServer?.once('close', () => {
+        if (bridgeProc) {
+          bridgeProc.kill('SIGTERM')
+          bridgeProc = null
+        }
+      })
+
+      void (async () => {
+        if (process.env.FREECUT_NO_VIBE_BRIDGE === '1') return
+        try {
+          const res = await fetch(VIBE_BRIDGE_HEALTH_URL, { signal: AbortSignal.timeout(1500) })
+          if (res.ok) {
+            server.config.logger.info('[vite] Vibe bridge already running on 127.0.0.1:8765')
+            return
+          }
+        } catch {
+          // not running — start a fresh one below
+        }
+
+        const bridgeScript = fileURLToPath(new URL('./scripts/vibe-bridge.mjs', import.meta.url))
+        bridgeProc = spawn(process.execPath, [bridgeScript], { stdio: 'inherit' })
+        bridgeProc.on('error', (error) => {
+          server.config.logger.error(`[vite] Failed to start the Vibe bridge: ${error.message}`)
+          bridgeProc = null
+        })
+        bridgeProc.on('exit', (code) => {
+          if (bridgeProc) {
+            server.config.logger.info(`[vite] Vibe bridge exited (${code})`)
+          }
+          bridgeProc = null
+        })
+        server.config.logger.info(
+          '[vite] Started the Vibe bridge (scripts/vibe-bridge.mjs) on 127.0.0.1:8765',
+        )
+      })()
+    },
+  }
+}
+
 // https://vite.dev/config/
 export default defineConfig({
   lint: {
@@ -94,7 +148,12 @@ export default defineConfig({
       },
     },
   },
-  plugins: lazyPlugins(() => [react(), tailwindcss(), serviceWorkerVersionPlugin()]),
+  plugins: lazyPlugins(() => [
+    react(),
+    tailwindcss(),
+    serviceWorkerVersionPlugin(),
+    vibeBridgePlugin(),
+  ]),
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),

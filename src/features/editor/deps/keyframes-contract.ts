@@ -5,6 +5,7 @@
 
 export { KeyframeToggle } from '@/features/keyframes/components/keyframe-toggle'
 export { resolveAnimatedTransform } from '@/features/keyframes/utils/animated-transform-resolver'
+export { resolveAnimatedShapeItem } from '@/features/keyframes/utils/animated-shape-item'
 export {
   getCropPropertyValue,
   resolveAnimatedCrop,
@@ -16,6 +17,7 @@ export {
 export { countTrimmedKeyframes } from '@/features/keyframes/utils/trimmed-keyframes'
 export {
   getAutoKeyframeOperation,
+  buildPathVertexKeyframeAllOperations,
   type AutoKeyframeOperation,
 } from '@/features/keyframes/utils/auto-keyframe'
 export { getAnimatablePropertiesForItem } from '@/features/keyframes/utils/animatable-properties'

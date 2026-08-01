@@ -16,7 +16,7 @@ import { MainComposition } from '@/features/preview/deps/composition-runtime'
 import { useItemsStore } from '@/features/preview/deps/timeline-store'
 import type { CompositionInputProps } from '@/types/export'
 import { usePlaybackStore } from '@/shared/state/playback'
-import { EDITOR_LAYOUT_CSS_VALUES } from '@/config/editor-layout'
+import { EDITOR_LAYOUT, EDITOR_LAYOUT_CSS_VALUES } from '@/config/editor-layout'
 import { FAST_SCRUB_RENDERER_ENABLED } from '../utils/preview-constants'
 import { getPreviewDisplayCanvasStyle } from '../utils/preview-display-canvas'
 import { getPreviewPixelSnapOffset } from '../utils/preview-pixel-snap'
@@ -27,6 +27,8 @@ import {
   resolvePlaybackColdStartVisibleFrame,
 } from '../utils/playback-cold-start-event'
 import { DomTextScrubOverlay } from './dom-text-scrub-overlay'
+import { useMaskEditorStore } from '../stores/mask-editor-store'
+import { computePreviewZoomToCursor } from '../utils/preview-pan-zoom'
 
 interface PreviewStageProps {
   backgroundRef: RefObject<HTMLDivElement | null>
@@ -36,6 +38,7 @@ interface PreviewStageProps {
   needsOverflow: boolean
   playerSize: { width: number; height: number }
   playerRenderSize: { width: number; height: number }
+  projectSize: { width: number; height: number }
   totalFrames: number
   fps: number
   /** Frame to start the player clock at on mount (preserves the playhead across remounts). */
@@ -77,6 +80,7 @@ export const PreviewStage = memo(function PreviewStage({
   needsOverflow,
   playerSize,
   playerRenderSize,
+  projectSize,
   totalFrames,
   fps,
   initialFrame = 0,
@@ -98,12 +102,18 @@ export const PreviewStage = memo(function PreviewStage({
 }: PreviewStageProps) {
   const { t } = useTranslation()
   const useProxy = usePlaybackStore((s) => s.useProxy)
+  const isMaskEditing = useMaskEditorStore((s) => s.isEditing)
+  const panX = usePlaybackStore((s) => s.panX)
+  const panY = usePlaybackStore((s) => s.panY)
   const pixelSnapAnchorRef = useRef<HTMLDivElement | null>(null)
   const pixelSnappedPlayerRef = useRef<HTMLDivElement | null>(null)
   const playerSurfaceRef = useRef<HTMLDivElement | null>(null)
   const textOverlayPlayerRef = useRef<PlayerRef | null>(null)
   const renderedOverlayVisibleRef = useRef(isRenderedOverlayVisible)
   renderedOverlayVisibleRef.current = isRenderedOverlayVisible
+  const panDragRef = useRef<{ startX: number; startY: number; panX: number; panY: number } | null>(
+    null,
+  )
 
   // Observe the browser's actual video presentation rather than treating a
   // Clock tick as visible output. The subscription is imperative so playback
@@ -239,6 +249,92 @@ export const PreviewStage = memo(function PreviewStage({
     [setPlayerContainerRefCallback],
   )
 
+  // Ctrl/Cmd+wheel zooms the preview around the cursor while a canvas editor
+  // (shape path / pen / AI mask) owns the stage. Captured phase so the mask
+  // editor canvas never sees the gesture.
+  const handleStageWheelCapture = useCallback(
+    (event: React.WheelEvent<HTMLDivElement>) => {
+      if (!useMaskEditorStore.getState().isEditing) return
+      if (!event.ctrlKey && !event.metaKey) return
+      event.preventDefault()
+      event.stopPropagation()
+      const player = playerSurfaceRef.current
+      const background = backgroundRef.current
+      if (!player || !background) return
+      const playerRect = player.getBoundingClientRect()
+      if (playerRect.width <= 0 || playerRect.height <= 0) return
+      const state = usePlaybackStore.getState()
+      const result = computePreviewZoomToCursor({
+        cursorX: event.clientX,
+        cursorY: event.clientY,
+        wheelDeltaY: event.deltaY,
+        zoom: state.zoom,
+        playerRect,
+        containerRect: background.getBoundingClientRect(),
+        containerClientWidth: background.clientWidth,
+        containerClientHeight: background.clientHeight,
+        scrollLeft: background.scrollLeft,
+        scrollTop: background.scrollTop,
+        projectSize,
+        paddingHalf: EDITOR_LAYOUT.previewPadding / 2,
+      })
+      state.setZoom(result.zoom)
+      state.setPan(result.panX, result.panY)
+    },
+    [backgroundRef, projectSize],
+  )
+
+  // Middle-button drag pans the preview while a canvas editor is active.
+  // Captured phase beats the mask editor canvas pointerdown (which would
+  // otherwise start a marquee/vertex drag on any button).
+  const handleStagePointerDownCapture = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
+    if (!useMaskEditorStore.getState().isEditing) return
+    if (event.button !== 1) return
+    event.preventDefault()
+    event.stopPropagation()
+    event.currentTarget.setPointerCapture?.(event.pointerId)
+    const state = usePlaybackStore.getState()
+    panDragRef.current = {
+      startX: event.clientX,
+      startY: event.clientY,
+      panX: state.panX,
+      panY: state.panY,
+    }
+    document.body.classList.add('preview-panning')
+  }, [])
+
+  const handleStagePointerMoveCapture = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
+    const drag = panDragRef.current
+    if (!drag) return
+    event.preventDefault()
+    usePlaybackStore
+      .getState()
+      .setPan(drag.panX + (event.clientX - drag.startX), drag.panY + (event.clientY - drag.startY))
+  }, [])
+
+  const handleStagePointerUpCapture = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
+    if (!panDragRef.current) return
+    panDragRef.current = null
+    event.preventDefault()
+    document.body.classList.remove('preview-panning')
+  }, [])
+
+  // Pan is only meaningful while an exclusive canvas editor is active; reset
+  // it the moment the editor exits so the stage returns to its centered fit.
+  useEffect(() => {
+    if (isMaskEditing) return
+    usePlaybackStore.getState().resetPan()
+    panDragRef.current = null
+    document.body.classList.remove('preview-panning')
+  }, [isMaskEditing])
+
+  useEffect(() => {
+    return () => {
+      panDragRef.current = null
+      document.body.classList.remove('preview-panning')
+    }
+  }, [])
+
   useLayoutEffect(() => {
     const anchor = pixelSnapAnchorRef.current
     if (!anchor || typeof window === 'undefined') return
@@ -285,7 +381,7 @@ export const PreviewStage = memo(function PreviewStage({
         cancelAnimationFrame(rafId)
       }
     }
-  }, [playerSize.height, playerSize.width])
+  }, [playerSize.height, playerSize.width, panX, panY])
 
   const isTimelineEmpty = inputProps.tracks.every((track) => track.items.length === 0)
   const isSplitGradeComparison = colorGradeComparisonMode === 'split'
@@ -346,6 +442,11 @@ export const PreviewStage = memo(function PreviewStage({
       className="w-full h-full bg-video-preview-background relative"
       style={{ overflow: needsOverflow ? 'auto' : 'visible' }}
       onClick={onBackgroundClick}
+      onWheelCapture={handleStageWheelCapture}
+      onPointerDownCapture={handleStagePointerDownCapture}
+      onPointerMoveCapture={handleStagePointerMoveCapture}
+      onPointerUpCapture={handleStagePointerUpCapture}
+      onPointerCancelCapture={handleStagePointerUpCapture}
       aria-label={t('preview.stage.videoPreview')}
     >
       <div
@@ -359,6 +460,7 @@ export const PreviewStage = memo(function PreviewStage({
           style={{
             width: `${playerSize.width}px`,
             height: `${playerSize.height}px`,
+            transform: panX !== 0 || panY !== 0 ? `translate(${panX}px, ${panY}px)` : undefined,
           }}
         >
           <div

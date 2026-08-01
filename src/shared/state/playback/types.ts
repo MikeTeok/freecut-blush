@@ -48,6 +48,10 @@ export interface PlaybackState {
   masterBusDb: number
   busAudioEq?: AudioEqSettings
   zoom: number
+  /** Horizontal pan offset applied to the preview player in CSS px (0 = centered). */
+  panX: number
+  /** Vertical pan offset applied to the preview player in CSS px (0 = centered). */
+  panY: number
   /** Frame to preview on hover (null when not hovering) */
   previewFrame: number | null
   /** Internal epoch for last previewFrame mutation (monotonic per store session) */
@@ -91,6 +95,10 @@ export interface PlaybackActions {
   setMasterBusDb: (db: number) => void
   setBusAudioEq: (eq: AudioEqSettings | undefined) => void
   setZoom: (zoom: number) => void
+  /** Set the preview player pan offset in CSS px. */
+  setPan: (panX: number, panY: number) => void
+  /** Reset the preview player pan offset back to centered. */
+  resetPan: () => void
   setPreviewFrame: (frame: number | null, itemId?: string | null) => void
   /** Toggle proxy playback mode */
   toggleUseProxy: () => void

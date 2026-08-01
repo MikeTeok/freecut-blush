@@ -37,6 +37,7 @@ export function usePreviewZoom() {
       if (preset.value === 'fit') {
         // Set to -1 to enable auto-fit mode
         setZoom(-1)
+        usePlaybackStore.getState().resetPan()
       } else {
         setZoom(preset.value)
       }
@@ -48,14 +49,16 @@ export function usePreviewZoom() {
    * Zoom in by 20%
    */
   const zoomIn = useCallback(() => {
-    setZoom(Math.min(2, Number((zoom * 1.2).toFixed(2))))
+    const base = zoom === -1 ? 1 : zoom
+    setZoom(Math.min(8, Number((base * 1.2).toFixed(2))))
   }, [zoom, setZoom])
 
   /**
    * Zoom out by 20%
    */
   const zoomOut = useCallback(() => {
-    setZoom(Math.max(0.1, Number((zoom / 1.2).toFixed(2))))
+    const base = zoom === -1 ? 1 : zoom
+    setZoom(Math.max(0.1, Number((base / 1.2).toFixed(2))))
   }, [zoom, setZoom])
 
   /**
@@ -63,6 +66,7 @@ export function usePreviewZoom() {
    */
   const resetZoom = useCallback(() => {
     setZoom(1)
+    usePlaybackStore.getState().resetPan()
   }, [setZoom])
 
   return {

@@ -300,6 +300,9 @@
       "stop": "Stop",
       "vibeConfigHint": "The Vibe binary, model file, and bridge are configured in Settings → AI.",
       "vibeEngineInfo": "Transcribing with Vibe (local app)",
+      "vibeBridgeChecking": "Checking local Vibe bridge…",
+      "vibeBridgeOffline": "Vibe bridge offline — start it with npm run vibe-bridge (or relaunch via the Freecut Blush launcher), then retry.",
+      "vibeBridgeOnline": "Vibe bridge connected",
       "vibeLanguageHint": "Choose the spoken language for better accuracy, or use auto detect.",
       "vibeMissingConfig": "Set the Vibe executable and model paths in Settings → AI before transcribing.",
       "whisperLanguageHint": "Choose the spoken language for better accuracy, or use auto detect."

@@ -10,6 +10,12 @@ import type { TimelineItem } from '@/types/timeline'
 import { isAutoKeyframeEnabled } from '../stores/auto-keyframe-store'
 import { useTransitionsStore } from '../deps/timeline-contract'
 import { isFrameInTransitionRegion } from './transition-region'
+import type { MaskVertex } from '@/types/masks'
+import {
+  buildPathVertexAnimatableProperty,
+  type PathVertexAnimatableComponent,
+} from '@/types/keyframe'
+import { getPathVertexPropertyValue } from './path-animatable-properties'
 
 export interface AutoKeyframeAddOperation {
   type: 'add'
@@ -204,6 +210,74 @@ export function getAutoKeyframeOperation(
   }
 }
 
+const PATH_VERTEX_COMPONENTS: readonly PathVertexAnimatableComponent[] = [
+  'positionX',
+  'positionY',
+  'inX',
+  'inY',
+  'outX',
+  'outY',
+]
+
 /**
- * All animatable transform properties
+ * Build one keyframe operation per component of every path vertex at the
+ * current frame. Unlike auto-keyframing this always writes keyframes — no
+ * dependency on the dopesheet auto-key toggle — so a single button press can
+ * pin the whole path (position + bezier handles) at the playhead.
+ *
+ * Skips lanes whose playhead frame sits outside the clip or inside a
+ * transition region.
  */
+export function buildPathVertexKeyframeAllOperations(params: {
+  item: TimelineItem
+  itemKeyframes: ItemKeyframes | undefined
+  vertices: MaskVertex[]
+  currentFrame: number
+}): AutoKeyframeOperation[] {
+  const { item, itemKeyframes, vertices, currentFrame } = params
+  const relativeFrame = currentFrame - item.from
+  if (relativeFrame < 0 || relativeFrame >= item.durationInFrames) return []
+
+  if (
+    isFrameInTransitionRegion(
+      relativeFrame,
+      item.id,
+      item,
+      useTransitionsStore.getState().transitions,
+    )
+  ) {
+    return []
+  }
+
+  const operations: AutoKeyframeOperation[] = []
+  for (let vertexIndex = 0; vertexIndex < vertices.length; vertexIndex += 1) {
+    for (const component of PATH_VERTEX_COMPONENTS) {
+      const property = buildPathVertexAnimatableProperty(vertexIndex, component)
+      const value = getPathVertexPropertyValue(vertices, property)
+
+      const existing = itemKeyframes?.properties
+        .find((entry) => entry.property === property)
+        ?.keyframes.find((keyframe) => keyframe.frame === relativeFrame)
+
+      operations.push(
+        existing
+          ? {
+              type: 'update',
+              itemId: item.id,
+              property,
+              keyframeId: existing.id,
+              updates: { value },
+            }
+          : {
+              type: 'add',
+              itemId: item.id,
+              property,
+              frame: relativeFrame,
+              value,
+              easing: 'linear',
+            },
+      )
+    }
+  }
+  return operations
+}

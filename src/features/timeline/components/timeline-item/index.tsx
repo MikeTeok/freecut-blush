@@ -41,7 +41,6 @@ import { useDragVisualState } from './use-drag-visual-state'
 import { useTimelineItemActions } from './use-timeline-item-actions'
 import { useTimelineItemDropHandlers } from './use-timeline-item-drop-handlers'
 import { ItemContextMenu } from './item-context-menu'
-import { useAutoTranscriptCaptions } from './use-auto-transcript-captions'
 import { useSmartTrimHover } from './use-smart-trim-hover'
 import { useContextMenuState } from './use-context-menu-state'
 import { useTimelineItemOverlayStore } from '../../stores/timeline-item-overlay-store'
@@ -190,7 +189,6 @@ export const TimelineItem = memo(function TimelineItem({
     isBroken,
     linkedItemsForCaptionOwnership,
   })
-  useAutoTranscriptCaptions({ item, caption, hasGeneratedCaptions, isBroken })
   const reverseMenuShowsUnreverse = useMemo(() => {
     if (item.type !== 'video' && item.type !== 'audio') {
       return false

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback, memo, useMemo, lazy, Suspense } from 'react'
-import { Columns2 } from 'lucide-react'
+import { Columns2, Diamond } from 'lucide-react'
 import {
   VideoPreview,
   PlaybackControls,
@@ -22,6 +22,12 @@ import { ErrorBoundary } from '@/app/error-boundary'
 import { useTranslation } from 'react-i18next'
 import { usePlaybackStore } from '@/shared/state/playback'
 import { ShuttleIndicator } from '@/shared/ui/shuttle-indicator'
+import { useTimelineStore, useKeyframesStore } from '@/features/editor/deps/timeline-store'
+import {
+  buildPathVertexKeyframeAllOperations,
+  resolveAnimatedShapeItem,
+} from '@/features/editor/deps/keyframes'
+import { toast } from 'sonner'
 
 interface PreviewAreaProps {
   project: {
@@ -199,6 +205,36 @@ export const PreviewArea = memo(function PreviewArea({
   const requestCancelPenMode = useMaskEditorStore((s) => s.requestCancelPenMode)
   const requestConvertSelectedVertex = useMaskEditorStore((s) => s.requestConvertSelectedVertex)
   const stopMaskEditing = useMaskEditorStore((s) => s.stopEditing)
+
+  const handleKeyframeAllVertices = useCallback(() => {
+    const maskStore = useMaskEditorStore.getState()
+    const itemId = maskStore.editingItemId
+    if (!itemId) return
+    const item = useItemsStore.getState().items.find((candidate) => candidate.id === itemId)
+    if (!item || item.type !== 'shape' || item.shapeType !== 'path') return
+
+    const currentFrame = usePlaybackStore.getState().currentFrame
+    const itemKeyframes = useKeyframesStore.getState().keyframesByItemId[itemId]
+    const resolved =
+      resolveAnimatedShapeItem(item, itemKeyframes, currentFrame - item.from).pathVertices ?? null
+    const vertices = maskStore.previewVertices ?? resolved ?? item.pathVertices ?? []
+    if (vertices.length === 0) return
+
+    const operations = buildPathVertexKeyframeAllOperations({
+      item,
+      itemKeyframes,
+      vertices,
+      currentFrame,
+    })
+    if (operations.length === 0) {
+      toast.warning('Move the playhead inside the clip to keyframe the path.')
+      return
+    }
+    useTimelineStore.getState().commitMaskEdit(itemId, {
+      autoKeyframeOperations: operations,
+    })
+    toast.success(`Keyframed ${vertices.length} vertices at this frame.`)
+  }, [])
   const aiMaskMode = useMaskEditorStore((s) => s.aiMaskMode)
   const aiBusy = useMaskEditorStore((s) => s.aiBusy)
   const aiError = useMaskEditorStore((s) => s.aiError)
@@ -728,6 +764,17 @@ export const PreviewArea = memo(function PreviewArea({
                   onClick={() => requestConvertSelectedVertex('bezier')}
                 >
                   Bezier
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="secondary"
+                  className="h-8 px-3 text-[11px] gap-1.5"
+                  onClick={handleKeyframeAllVertices}
+                  title="Keyframe every vertex (position + bezier handles) at the current playhead"
+                >
+                  <Diamond className="h-3.5 w-3.5" />
+                  Keyframe
                 </Button>
                 <Button
                   type="button"
