@@ -181,10 +181,6 @@ export const Timeline = memo(function Timeline({ duration }: TimelineProps) {
     handleZoomOut: () => void
     handleZoomToFit: () => void
   } | null>(null)
-  const [timelineMetrics, setTimelineMetrics] = useState({
-    actualDuration: Math.max(duration, 10),
-    timelineWidth: 0,
-  })
   const [trackRowsViewportHeight, setTrackRowsViewportHeight] = useState(0)
   // A/V divider position is a viewport layout preference, persisted globally in
   // localStorage (null = centered default). Seed the live value once from the
@@ -1112,7 +1108,6 @@ export const Timeline = memo(function Timeline({ duration }: TimelineProps) {
             audioPaneHeight={audioPaneHeight}
             onSectionDividerMouseDown={hasTrackSections ? handleSectionDividerMouseDown : undefined}
             onZoomHandlersReady={setZoomHandlers}
-            onMetricsChange={setTimelineMetrics}
           />
         </div>
 
@@ -1122,11 +1117,7 @@ export const Timeline = memo(function Timeline({ duration }: TimelineProps) {
             style={{ width: EDITOR_LAYOUT_CSS_VALUES.timelineSidebarWidth }}
           />
           <div className="flex-1 min-w-0">
-            <TimelineNavigator
-              actualDuration={timelineMetrics.actualDuration}
-              timelineWidth={timelineMetrics.timelineWidth}
-              scrollContainerRef={timelineContentRef}
-            />
+            <TimelineNavigator actualDuration={duration} scrollContainerRef={timelineContentRef} />
           </div>
         </div>
       </div>

@@ -3730,6 +3730,11 @@ export const KeyframeGraphPanel = memo(function KeyframeGraphPanel({
                     globalFrame={currentFrame}
                     itemFrom={selectedItemForEditor.from}
                     totalFrames={selectedItemForEditor.durationInFrames}
+                    affectedFrameRange={
+                      surface === 'edit'
+                        ? { fromFrame: 0, toFrame: selectedItemForEditor.durationInFrames }
+                        : undefined
+                    }
                     trimmedKeyframeCount={surface === 'edit' ? trimmedKeyframeCount : 0}
                     onTrimAnimation={surface === 'edit' ? handleTrimAnimation : undefined}
                     fps={surface === 'edit' ? editTimelineFps : canvas.fps}

@@ -111,6 +111,7 @@ interface UsePreviewRendererControllerParams {
   fps: number
   isResolving: boolean
   forceFastScrubOverlay: boolean
+  preserveRendererAcrossOverlayRouting: boolean
   domTextScrubOverlayEnabled: boolean
   items: TimelineItem[]
   playerSize: { width: number; height: number }
@@ -189,6 +190,7 @@ export function usePreviewRendererController({
   fps,
   isResolving,
   forceFastScrubOverlay,
+  preserveRendererAcrossOverlayRouting,
   domTextScrubOverlayEnabled,
   items,
   playerSize,
@@ -263,6 +265,11 @@ export function usePreviewRendererController({
   })
   const previousItemsRef = useRef(items)
   const previousIsResolvingRef = useRef(isResolving)
+  const forceFastScrubOverlayRef = useRef(forceFastScrubOverlay)
+  forceFastScrubOverlayRef.current = forceFastScrubOverlay
+  const overlayRoutingResetKey = preserveRendererAcrossOverlayRouting
+    ? false
+    : forceFastScrubOverlay
   const pendingPostEditWarmRequestRef = useRef<PostEditWarmRequest | null>(null)
   const postEditWarmInFlightRef = useRef(false)
   const liveScopeCaptureRendererRef = useRef<PreviewCompositionRenderer | null>(null)
@@ -847,7 +854,7 @@ export function usePreviewRendererController({
     const playbackState = usePlaybackStore.getState()
     const targetFrame = playbackState.previewFrame ?? playbackState.currentFrame
     if (
-      forceFastScrubOverlay ||
+      forceFastScrubOverlayRef.current ||
       playbackState.previewFrame !== null ||
       showFastScrubOverlayRef.current ||
       showPlaybackTransitionOverlayRef.current
@@ -865,7 +872,7 @@ export function usePreviewRendererController({
     bgTransitionRendererRef,
     disposeFastScrubRenderer,
     fastScrubRendererStructureKey,
-    forceFastScrubOverlay,
+    overlayRoutingResetKey,
     invalidateCommittedPreviewSnapshot,
     renderSize.height,
     renderSize.width,
