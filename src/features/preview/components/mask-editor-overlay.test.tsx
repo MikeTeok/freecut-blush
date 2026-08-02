@@ -1214,6 +1214,55 @@ describe('MaskEditorOverlay edit mode', () => {
     expect(useMaskEditorStore.getState().selectedVertexIndex).toBe(1)
   })
 
+  it('moves all selected points together when dragging a selected point', async () => {
+    seedEditablePath()
+
+    const { canvas } = renderMaskEditorOverlay(PATH_ITEM_TRANSFORM)
+
+    act(() => {
+      useMaskEditorStore.getState().selectVertices([0, 1, 2, 3], 1)
+    })
+
+    fireEvent.pointerDown(canvas, { clientX: 150, clientY: 30, pointerId: 1 })
+    fireEvent.pointerMove(canvas, { clientX: 165, clientY: 30, pointerId: 1 })
+
+    const preview = useMaskEditorStore.getState().previewVertices
+    expect(preview).toBeTruthy()
+    expect(preview?.[0]?.position[0]).toBeCloseTo(0.15, 5)
+    expect(preview?.[1]?.position[0]).toBeCloseTo(1.15, 5)
+    expect(preview?.[2]?.position[0]).toBeCloseTo(1.15, 5)
+    expect(preview?.[3]?.position[0]).toBeCloseTo(0.15, 5)
+    expect(preview?.[0]?.position[1]).toBe(0)
+    expect(preview?.[2]?.position[1]).toBe(1)
+
+    fireEvent.pointerUp(canvas, { clientX: 165, clientY: 30, pointerId: 1 })
+
+    const updatedItem = useItemsStore.getState().items.find((item) => item.id === 'path-1') as
+      | ShapeItem
+      | undefined
+    expect(updatedItem?.transform?.x).toBeCloseTo(15, 5)
+  })
+
+  it('moves only the dragged point when it is not part of the current selection', () => {
+    seedEditablePath()
+
+    const { canvas } = renderMaskEditorOverlay(PATH_ITEM_TRANSFORM)
+
+    act(() => {
+      useMaskEditorStore.getState().selectVertex(0)
+    })
+
+    fireEvent.pointerDown(canvas, { clientX: 150, clientY: 30, pointerId: 1 })
+    fireEvent.pointerMove(canvas, { clientX: 165, clientY: 30, pointerId: 1 })
+
+    const preview = useMaskEditorStore.getState().previewVertices
+    expect(preview).toBeTruthy()
+    expect(preview?.[0]?.position[0]).toBe(0)
+    expect(preview?.[1]?.position[0]).toBeCloseTo(1.15, 5)
+    expect(preview?.[2]?.position).toEqual([1, 1])
+    expect(preview?.[3]?.position).toEqual([0, 1])
+  })
+
   it('deletes the selected point instead of deleting the whole path item', async () => {
     seedEditablePath()
     useSelectionStore.getState().selectItems(['path-1'])
@@ -1373,13 +1422,7 @@ describe('MaskEditorOverlay edit mode', () => {
 
     const newerInteractionId = useGizmoStore
       .getState()
-      .startTranslate(
-        'path-1',
-        { x: 20, y: 20 },
-        PATH_ITEM_TRANSFORM,
-        undefined,
-        'shape',
-      )
+      .startTranslate('path-1', { x: 20, y: 20 }, PATH_ITEM_TRANSFORM, undefined, 'shape')
 
     unmount()
 

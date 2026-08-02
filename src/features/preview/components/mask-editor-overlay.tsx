@@ -144,6 +144,7 @@ type EditDragState =
       vertexIndex: number
       handleType: 'in' | 'out' | null
       startCanvasPos: [number, number]
+      selectedIndices: number[]
     }
   | {
       type: 'shape'
@@ -1877,12 +1878,14 @@ export const MaskEditorOverlay = memo(function MaskEditorOverlay({
 
       if (hit.type === 'vertex') {
         startVertexDrag(hit.index)
+        const selectedIndices = useMaskEditorStore.getState().selectedVertexIndices
         dragStateRef.current = {
           type: 'vertex',
           startVertices: cloneVertices(vertices),
           vertexIndex: hit.index,
           handleType: null,
           startCanvasPos: [canvasPos.x, canvasPos.y],
+          selectedIndices,
         }
       } else if (hit.type === 'inHandle' || hit.type === 'outHandle') {
         const handleType = hit.type === 'inHandle' ? 'in' : 'out'
@@ -1893,6 +1896,7 @@ export const MaskEditorOverlay = memo(function MaskEditorOverlay({
           vertexIndex: hit.index,
           handleType,
           startCanvasPos: [canvasPos.x, canvasPos.y],
+          selectedIndices: [hit.index],
         }
       } else {
         const itemId = editingItemIdRef.current
@@ -1978,10 +1982,14 @@ export const MaskEditorOverlay = memo(function MaskEditorOverlay({
         const newVertices = cloneVertices(state.startVertices)
 
         if (state.handleType === null) {
-          const v = newVertices[state.vertexIndex]!
-          const orig = state.startVertices[state.vertexIndex]!
-          v.position[0] = orig.position[0] + dx / itemWidth
-          v.position[1] = orig.position[1] + dy / itemHeight
+          for (const index of state.selectedIndices) {
+            const v = newVertices[index]
+            const orig = state.startVertices[index]
+            if (v && orig) {
+              v.position[0] = orig.position[0] + dx / itemWidth
+              v.position[1] = orig.position[1] + dy / itemHeight
+            }
+          }
         } else {
           const v = newVertices[state.vertexIndex]!
           const orig = state.startVertices[state.vertexIndex]!
