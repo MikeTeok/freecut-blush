@@ -1446,6 +1446,16 @@ export const TimelineContent = memo(function TimelineContent({
 
   const handleTimelineMouseMove = useCallback(
     (e: React.MouseEvent) => {
+      // Hover skim preview is opt-in; off by default. Skip scheduling hover
+      // previews entirely, and clear any preview left from a previous toggle.
+      if (!showTimelinePreviewScrubber) {
+        cancelPendingHoverPreview()
+        if (usePlaybackStore.getState().previewFrame !== null) {
+          setPreviewFrameRef.current(null)
+        }
+        return
+      }
+
       // A hover-skim request that lands in the same frame as the first zoom
       // wheel update makes the program monitor render a new preview frame while
       // the dense timeline is also changing scale. Keep the last settled
@@ -1553,7 +1563,7 @@ export const TimelineContent = memo(function TimelineContent({
         schedulePreviewFrame()
       }
     },
-    [buildRazorSnapTargets, cancelPendingHoverPreview],
+    [buildRazorSnapTargets, cancelPendingHoverPreview, showTimelinePreviewScrubber],
   )
 
   const handleTimelineMouseLeave = useCallback(() => {

@@ -201,6 +201,9 @@ describe('TimelineContent playback selection behavior', () => {
   beforeEach(() => {
     resetStores()
     marqueeMocks.onGestureEnd = undefined
+    // Most tests in this suite exercise the hover-skim preview path; it is
+    // opt-in in the app, so enable it here explicitly.
+    useSettingsStore.setState({ showTimelinePreviewScrubber: true })
   })
 
   it('renders one full-height playhead and one tool-only preview overlay', () => {

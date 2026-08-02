@@ -19,11 +19,11 @@ import { basename, join } from 'node:path'
 const HOST = '127.0.0.1'
 const PORT = Number(process.env.VIBE_BRIDGE_PORT ?? 8765)
 
-const IDLE_TIMEOUT_MINUTES = Number(process.env.VIBE_BRIDGE_IDLE_TIMEOUT_MINUTES ?? 10)
+const IDLE_TIMEOUT_MINUTES = Number(process.env.VIBE_BRIDGE_IDLE_TIMEOUT_MINUTES ?? 0)
 const IDLE_TIMEOUT_MS =
   (Number.isFinite(IDLE_TIMEOUT_MINUTES) && IDLE_TIMEOUT_MINUTES > 0
     ? IDLE_TIMEOUT_MINUTES
-    : 10) * 60_000
+    : 0) * 60_000
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
@@ -257,19 +257,23 @@ function shutdown(reason) {
 process.on('SIGINT', () => shutdown('received SIGINT — shutting down'))
 process.on('SIGTERM', () => shutdown('received SIGTERM — shutting down'))
 
-const idleTimer = setInterval(() => {
-  if (activeRequests > 0) return
-  const idleForMs = Date.now() - lastActivityAt
-  if (idleForMs < IDLE_TIMEOUT_MS) return
-  shutdown(`No requests for ${Math.round(idleForMs / 60_000)} minutes — shutting down`)
-}, 15_000)
-idleTimer.unref()
+if (IDLE_TIMEOUT_MS > 0) {
+  const idleTimer = setInterval(() => {
+    if (activeRequests > 0) return
+    const idleForMs = Date.now() - lastActivityAt
+    if (idleForMs < IDLE_TIMEOUT_MS) return
+    shutdown(`No requests for ${Math.round(idleForMs / 60_000)} minutes — shutting down`)
+  }, 15_000)
+  idleTimer.unref()
+}
 
 server.listen(PORT, HOST, () => {
   console.log(`[vibe-bridge] listening on http://${HOST}:${PORT}`)
   console.log('[vibe-bridge] Start the app and set Settings → AI → Transcription engine → Vibe')
   console.log(
-    `[vibe-bridge] Auto-exits after ${Math.round(IDLE_TIMEOUT_MS / 60_000)} min idle ` +
-      `(VIBE_BRIDGE_IDLE_TIMEOUT_MINUTES to change)`,
+    IDLE_TIMEOUT_MS > 0
+      ? `[vibe-bridge] Auto-exits after ${Math.round(IDLE_TIMEOUT_MS / 60_000)} min idle ` +
+          `(VIBE_BRIDGE_IDLE_TIMEOUT_MINUTES to change)`
+      : '[vibe-bridge] Idle timeout disabled — stays running until stopped (Ctrl+C)',
   )
 })
