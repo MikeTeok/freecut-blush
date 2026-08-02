@@ -109,7 +109,9 @@
       "showWaveforms": "Afficher les formes d'onde",
       "showFilmstrips": "Afficher les vignettes vidéo",
       "enableFilmstripExtraction": "Extraire les bandes d’images",
-      "enableFilmstripExtractionDescription": "Génère des bandes de vignettes vidéo pendant l’importation et l’affichage dans la timeline."
+      "enableFilmstripExtractionDescription": "Génère des bandes de vignettes vidéo pendant l’importation et l’affichage dans la timeline.",
+      "showTimelinePreviewScrubber": "Curseur d'aperçu au survol",
+      "showTimelinePreviewScrubberDescription": "Afficher une tête de lecture fantôme et un aperçu au survol de la timeline."
     },
     "storage": {
       "generateMissingProxies": "Générer les proxys manquants",

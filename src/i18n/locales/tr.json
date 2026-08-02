@@ -109,7 +109,9 @@
       "showWaveforms": "Dalga formlarını göster",
       "showFilmstrips": "Film şeritlerini göster",
       "enableFilmstripExtraction": "Film şeritlerini çıkar",
-      "enableFilmstripExtractionDescription": "İçe aktarma ve zaman çizelgesinde görüntüleme sırasında video küçük resim şeritleri oluşturur."
+      "enableFilmstripExtractionDescription": "İçe aktarma ve zaman çizelgesinde görüntüleme sırasında video küçük resim şeritleri oluşturur.",
+      "showTimelinePreviewScrubber": "Hover önizleme sürgüsü",
+      "showTimelinePreviewScrubberDescription": "Zaman çizelgesinin üzerinde gezinirken hayalet oynatma kafası ve kare önizlemesi göster."
     },
     "storage": {
       "generateMissingProxies": "Eksik Proxy'leri Oluştur",

@@ -109,7 +109,9 @@
       "showWaveforms": "显示波形",
       "showFilmstrips": "显示视频缩略图条",
       "enableFilmstripExtraction": "提取缩略图条",
-      "enableFilmstripExtractionDescription": "在导入和时间线显示时生成视频缩略图条。"
+      "enableFilmstripExtractionDescription": "在导入和时间线显示时生成视频缩略图条。",
+      "showTimelinePreviewScrubber": "悬停预览刮擦器",
+      "showTimelinePreviewScrubberDescription": "在时间线上悬停时显示幽灵播放头和帧预览。"
     },
     "storage": {
       "generateMissingProxies": "生成缺失的代理",

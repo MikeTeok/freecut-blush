@@ -15,6 +15,7 @@ import { _resetZoomStoreForTest, useZoomStore } from '../stores/zoom-store'
 import { ZOOM_MAX, ZOOM_MIN } from '../constants'
 import { TimelineContent } from './timeline-content'
 import { TIMELINE_LIVE_SCROLL_EVENT } from '@/shared/timeline/live-scroll-sync'
+import { useSettingsStore } from '../deps/settings-contract'
 
 const perfMarkMocks = vi.hoisted(() => ({
   mark: vi.fn(),
@@ -203,6 +204,7 @@ describe('TimelineContent playback selection behavior', () => {
   })
 
   it('renders one full-height playhead and one tool-only preview overlay', () => {
+    useSettingsStore.setState({ showTimelinePreviewScrubber: true })
     const { container, getAllByTestId, getByTestId } = render(
       <TimelineContent duration={10} tracks={[VIDEO_TRACK]} />,
     )
@@ -232,6 +234,13 @@ describe('TimelineContent playback selection behavior', () => {
     await waitFor(() => {
       expect(useSelectionStore.getState().selectedItemIds).toEqual([VIDEO_ITEM.id])
     })
+  })
+
+  it('hides the preview scrubber overlay when the setting is off (default)', () => {
+    useSettingsStore.setState({ showTimelinePreviewScrubber: false })
+    const { queryAllByTestId } = render(<TimelineContent duration={10} tracks={[VIDEO_TRACK]} />)
+
+    expect(queryAllByTestId('unified-timeline-preview-scrubber')).toHaveLength(0)
   })
 
   it('pages the navigator viewport when a playing playhead reaches the edge', () => {

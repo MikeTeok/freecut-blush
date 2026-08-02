@@ -109,7 +109,9 @@
       "showWaveforms": "파형 표시",
       "showFilmstrips": "동영상 썸네일 표시",
       "enableFilmstripExtraction": "필름스트립 추출",
-      "enableFilmstripExtractionDescription": "가져오기와 타임라인 표시 중 동영상 썸네일 스트립을 생성합니다."
+      "enableFilmstripExtractionDescription": "가져오기와 타임라인 표시 중 동영상 썸네일 스트립을 생성합니다.",
+      "showTimelinePreviewScrubber": "호버 미리보기 스크러버",
+      "showTimelinePreviewScrubberDescription": "타임라인을 가리키면 고스트 재생헤드와 프레임 미리보기를 표시합니다."
     },
     "storage": {
       "generateMissingProxies": "누락된 프록시 생성",

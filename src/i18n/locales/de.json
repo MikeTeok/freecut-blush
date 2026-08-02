@@ -109,7 +109,9 @@
       "showWaveforms": "Wellenformen anzeigen",
       "showFilmstrips": "Video-Vorschaubilder anzeigen",
       "enableFilmstripExtraction": "Filmstreifen extrahieren",
-      "enableFilmstripExtractionDescription": "Erstellt Video-Miniaturstreifen beim Import und bei der Anzeige in der Timeline."
+      "enableFilmstripExtractionDescription": "Erstellt Video-Miniaturstreifen beim Import und bei der Anzeige in der Timeline.",
+      "showTimelinePreviewScrubber": "Hover-Vorschau-Scrubber",
+      "showTimelinePreviewScrubberDescription": "Ghost-Playhead und Bildvorschau beim Hover über der Timeline anzeigen."
     },
     "storage": {
       "generateMissingProxies": "Fehlende Proxys generieren",

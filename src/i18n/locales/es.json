@@ -109,7 +109,9 @@
       "showWaveforms": "Mostrar formas de onda",
       "showFilmstrips": "Mostrar miniaturas de vídeo",
       "enableFilmstripExtraction": "Extraer tiras de fotogramas",
-      "enableFilmstripExtractionDescription": "Genera tiras de miniaturas de vídeo durante la importación y la visualización en la línea de tiempo."
+      "enableFilmstripExtractionDescription": "Genera tiras de miniaturas de vídeo durante la importación y la visualización en la línea de tiempo.",
+      "showTimelinePreviewScrubber": "Scrubber de vista previa",
+      "showTimelinePreviewScrubberDescription": "Mostrar un cabezal fantasma y vista previa al pasar sobre la línea de tiempo."
     },
     "storage": {
       "generateMissingProxies": "Generar proxies faltantes",

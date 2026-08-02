@@ -32,6 +32,8 @@ interface AppSettings {
   showWaveforms: boolean
   showFilmstrips: boolean
   enableFilmstripExtraction: boolean
+  /** Hover preview scrubber (ghost playhead + tooltip) over the main timeline. Off by default. */
+  showTimelinePreviewScrubber: boolean
 
   // Interface
   editorDensity: EditorDensityPresetName
@@ -170,6 +172,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   showWaveforms: true,
   showFilmstrips: true,
   enableFilmstripExtraction: true,
+  showTimelinePreviewScrubber: false,
 
   // Interface
   editorDensity: DEFAULT_EDITOR_DENSITY_PRESET,
@@ -334,7 +337,7 @@ export const useSettingsStore = create<SettingsStore>()(
     }),
     {
       name: 'freecut-settings',
-      version: 2,
+      version: 3,
       // v1: auto-save now defaults on. Enable it for anyone persisted under the old
       // default (0 = disabled) so a crashed or closed tab can't lose a long edit.
       // After this one-time bump the user's choice is sticky again (toggle in
@@ -343,6 +346,8 @@ export const useSettingsStore = create<SettingsStore>()(
       // with native punctuation). Upgrade anyone still on the previous default
       // ('whisper-base') so the speed win applies without manual opt-in; deliberate
       // tiny/small/large choices are preserved.
+      // v3: hover preview scrubber is opt-in, off by default. The merge (below)
+      // force-defaults it to false on first load after upgrade.
       migrate: (persistedState, version) => {
         let state = (persistedState as Partial<AppSettings> | undefined) ?? {}
         if (version < 1 && (state.autoSaveInterval == null || state.autoSaveInterval <= 0)) {
@@ -378,6 +383,7 @@ export const useSettingsStore = create<SettingsStore>()(
           vibeBinaryPath: normalizeStringSetting(typedState.vibeBinaryPath),
           vibeModelPath: normalizeStringSetting(typedState.vibeModelPath),
           vibeBridgeUrl: normalizeVibeBridgeUrl(typedState.vibeBridgeUrl),
+          showTimelinePreviewScrubber: typedState.showTimelinePreviewScrubber === true,
         }
       },
     },

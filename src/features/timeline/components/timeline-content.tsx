@@ -11,6 +11,7 @@ import { registerZoomTo100, useZoomStore } from '../stores/zoom-store'
 import { usePlaybackStore } from '@/shared/state/playback'
 import { useEditorStore } from '@/shared/state/editor'
 import { useSelectionStore } from '@/shared/state/selection'
+import { useSettingsStore } from '../deps/settings-contract'
 
 // Hooks
 import { useMarqueeSelection } from '@/shared/marquee/use-marquee-selection'
@@ -748,6 +749,9 @@ export const TimelineContent = memo(function TimelineContent({
 
   perfMarkRender('TimelineContent')
   const { t } = useTranslation()
+
+  // Hover preview scrubber is opt-in; off by default.
+  const showTimelinePreviewScrubber = useSettingsStore((s) => s.showTimelinePreviewScrubber)
 
   // Prefetch waveforms for clips approaching the viewport
   useWaveformPrefetch()
@@ -2191,7 +2195,9 @@ export const TimelineContent = memo(function TimelineContent({
         </TimelineSettledContentZoomProvider>
 
         {/* One overlay owns each complete marker across the ruler and tracks. */}
-        <TimelinePreviewScrubber inRuler maxFrame={maxTimelineFrame} zIndex={40} />
+        {showTimelinePreviewScrubber ? (
+          <TimelinePreviewScrubber inRuler maxFrame={maxTimelineFrame} zIndex={40} />
+        ) : null}
         <TimelinePlayhead
           inRuler
           maxFrame={maxTimelineFrame}
