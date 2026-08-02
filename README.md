@@ -23,6 +23,19 @@ folder you choose on disk.
 Built upon [FreeCut](https://github.com/walterlow/freecut) by walterlow — a browser-based,
 multi-track video editor with WebGPU, WebCodecs, and local-first storage.
 
+## What's different from FreeCut
+
+Everything in FreeCut is here, plus these fork-only extras:
+
+- **Rosé Pine Moon pink theme** — full rebrand with a new logo, icons, and favicon
+- **SRT/VTT subtitle import** — drop a subtitle file into the media library and add it to the timeline as a caption clip
+- **Text templates** — save and reuse text styles across projects
+- **Keyframe interpolation in classic view** — set easing/interpolation without switching to the graph editor
+- **Dockable keyframe panel** — pin the keyframe editor beside the timeline instead of only at the bottom
+- **Vibe transcription** — a local transcription engine that works without loading a Whisper model in the browser; connect it through the bundled bridge server (`npm run vibe-bridge`)
+- **Mask workflow upgrades** — AI mask-to-path conversion, vertex index badges, per-vertex path keyframes, and dragging multiple selected vertices at once
+- **Hover preview scrubber toggle** — the timeline's ghost-playhead hover preview is opt-in and off by default (Settings → Timeline)
+
 ## User Guide
 
 New to Freecut Blush? Start with the [user guide](https://freecut.net/docs).
@@ -167,8 +180,8 @@ Runs on-device in the browser — nothing is uploaded.
 **Prerequisites:** Node.js 22+ recommended, npm 11+, and a modern Chromium browser.
 
 ```bash
-git clone https://github.com/walterlow/freecut.git
-cd freecut
+git clone https://github.com/MikeTeok/freecut-blush.git
+cd freecut-blush
 npm install
 npm run dev
 ```
