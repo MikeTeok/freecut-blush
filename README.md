@@ -23,7 +23,7 @@ folder you choose on disk.
 Built upon [FreeCut](https://github.com/walterlow/freecut) by walterlow — a browser-based,
 multi-track video editor with WebGPU, WebCodecs, and local-first storage.
 
-## What's different from FreeCut
+## What's different from  Original FreeCut
 
 Everything in FreeCut is here, plus these fork-only extras:
 
@@ -34,6 +34,7 @@ Everything in FreeCut is here, plus these fork-only extras:
 - **Dockable keyframe panel** — pin the keyframe editor beside the timeline instead of only at the bottom
 - **Vibe transcription** — a local transcription engine that works without loading a Whisper model in the browser; connect it through the bundled bridge server (`npm run vibe-bridge`)
 - **Mask workflow upgrades** — AI mask-to-path conversion, vertex index badges, per-vertex path keyframes, and dragging multiple selected vertices at once
+- **Track Mask (BETA)** — Tracking Mask automatically for the rest of the clip
 - **Hover preview scrubber toggle** — the timeline's ghost-playhead hover preview is opt-in and off by default (Settings → Timeline)
 
 ## User Guide
