@@ -24,6 +24,57 @@ import {
   getVectorAnimatablePropertyComponents,
 } from '@/types/keyframe'
 
+import type { PropertyKeyframeUpsertEntry } from '@/types/keyframe'
+
+type UpsertedKeyframe = PropertyKeyframeUpsertEntry['keyframes'][number]
+
+/** Merge one incoming keyframe onto an existing keyframe at the same frame. */
+function mergeKeyframeAtFrame(
+  previousKeyframes: readonly Keyframe[] | undefined,
+  keyframe: UpsertedKeyframe,
+): Keyframe {
+  const previous = previousKeyframes?.find((candidate) => candidate.frame === keyframe.frame)
+  if (!previous) {
+    return {
+      id: crypto.randomUUID(),
+      frame: keyframe.frame,
+      value: keyframe.value,
+      easing: keyframe.easing ?? 'linear',
+      easingConfig: keyframe.easingConfig,
+      source: keyframe.source,
+    }
+  }
+  return {
+    id: previous.id,
+    frame: keyframe.frame,
+    value: keyframe.value,
+    easing: keyframe.easing ?? previous.easing ?? 'linear',
+    easingConfig: keyframe.easingConfig ?? previous.easingConfig,
+    source: keyframe.source ?? previous.source,
+  }
+}
+
+/**
+ * Merge incoming bulk-upsert keyframes for one property with any existing ones:
+ * incoming values overwrite same-frame entries (reusing the existing keyframe's
+ * id and preserving hand-tuned easing unless the incoming entry overrides it),
+ * while frames the upsert does not touch keep their existing keyframes.
+ */
+function mergeUpsertedPropertyKeyframes(
+  existing: PropertyKeyframes | undefined,
+  incoming: UpsertedKeyframe[],
+): Keyframe[] {
+  const incomingByFrame = new Map(incoming.map((keyframe) => [keyframe.frame, keyframe]))
+  const preserved = (existing?.keyframes ?? []).filter(
+    (keyframe) => !incomingByFrame.has(keyframe.frame),
+  )
+
+  return [
+    ...preserved,
+    ...incoming.map((keyframe) => mergeKeyframeAtFrame(existing?.keyframes, keyframe)),
+  ].sort((a, b) => a.frame - b.frame)
+}
+
 /**
  * Keyframes state - animation keyframes for timeline items.
  * Keyframes reference items by itemId - orphaned keyframes should be cleaned up
@@ -90,6 +141,13 @@ interface KeyframesActions {
     easingConfig?: EasingConfig,
   ) => string
   _addKeyframes: (payloads: KeyframeAddPayload[]) => string[]
+  /**
+   * Bulk upsert: for each entry, incoming frames overwrite any existing
+   * keyframe at the same frame, while existing keyframes at frames not present
+   * in the payload are preserved. Used by generated animation (e.g. mask
+   * tracking) that rewrites whole channels without dropping hand-tuned frames.
+   */
+  _upsertPropertiesKeyframes: (itemId: string, entries: PropertyKeyframeUpsertEntry[]) => void
   _updateKeyframe: (
     itemId: string,
     property: AnimatableProperty,
@@ -100,10 +158,7 @@ interface KeyframesActions {
   _removeKeyframesForItem: (itemId: string) => void
   _removeKeyframesForItems: (itemIds: string[]) => void
   _removeKeyframesForProperty: (itemId: string, property: AnimatableProperty) => void
-  _removeVectorKeyframesForProperty: (
-    itemId: string,
-    property: VectorAnimatableProperty,
-  ) => void
+  _removeVectorKeyframesForProperty: (itemId: string, property: VectorAnimatableProperty) => void
   _removeKeyframesByApplication: (itemId: string, applicationId: string) => void
   _removeManualKeyframes: (itemId: string) => void
   _setDirectPropertyLink: (itemId: string, link: DirectPropertyLink) => void
@@ -452,6 +507,50 @@ export const useKeyframesStore = create<KeyframesState & KeyframesActions>()((se
     return newIds
   },
 
+  // Bulk upsert keyframes for multiple properties at once. Incoming frames
+  // replace existing values at the same frame; existing keyframes at other
+  // frames are kept so a re-track does not wipe hand-tuned keyframes.
+  _upsertPropertiesKeyframes: (itemId, entries) => {
+    if (entries.length === 0) return
+
+    set((state) => {
+      const existingItem = state.keyframes.find((candidate) => candidate.itemId === itemId)
+      const propertiesByName = new Map(
+        (existingItem?.properties ?? []).map((property) => [property.property, property]),
+      )
+
+      for (const entry of entries) {
+        if (entry.keyframes.length === 0) continue
+        const existing = propertiesByName.get(entry.property)
+        propertiesByName.set(entry.property, {
+          property: entry.property,
+          keyframes: mergeUpsertedPropertyKeyframes(existing, entry.keyframes),
+        })
+      }
+
+      const properties = Array.from(propertiesByName.values()).filter(
+        (property) => property.keyframes.length > 0,
+      )
+
+      if (!existingItem) {
+        return {
+          keyframes: [
+            ...state.keyframes,
+            { itemId, animationVersion: ANIMATION_CORE_VERSION, properties },
+          ],
+        }
+      }
+
+      return {
+        keyframes: state.keyframes.map((candidate) =>
+          candidate.itemId === itemId
+            ? { ...candidate, animationVersion: ANIMATION_CORE_VERSION, properties }
+            : candidate,
+        ),
+      }
+    })
+  },
+
   // Update keyframe
   _updateKeyframe: (itemId, property, keyframeId, updates) =>
     set((state) => ({
@@ -524,8 +623,7 @@ export const useKeyframesStore = create<KeyframesState & KeyframesActions>()((se
               (link) => !idsSet.has(link.sourceItemId),
             ),
             expressions: itemKeyframes.expressions?.filter(
-              (expression) =>
-                expression.type !== 'link' || !idsSet.has(expression.sourceItemId),
+              (expression) => expression.type !== 'link' || !idsSet.has(expression.sourceItemId),
             ),
           }))
           .filter(hasStoredAnimation),
@@ -931,7 +1029,11 @@ export const useKeyframesStore = create<KeyframesState & KeyframesActions>()((se
         return {
           keyframes: [
             ...state.keyframes,
-            updateItemKeyframes({ itemId, animationVersion: ANIMATION_CORE_VERSION, properties: [] }),
+            updateItemKeyframes({
+              itemId,
+              animationVersion: ANIMATION_CORE_VERSION,
+              properties: [],
+            }),
           ],
         }
       }

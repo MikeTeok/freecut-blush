@@ -227,6 +227,12 @@ const maskVertexSchema = z.object({
   tangentMode: z.enum(['corner', 'smooth', 'continuous', 'broken']).optional(),
 })
 
+const promptPointSchema = z.object({
+  x: z.number(),
+  y: z.number(),
+  label: z.union([z.literal(1), z.literal(-1)]),
+})
+
 // ============================================================================
 // Effect Schemas
 // ============================================================================
@@ -510,6 +516,7 @@ const timelineItemSchema = z
     innerRadius: z.number().optional(),
     pathVertices: z.array(maskVertexSchema).optional(),
     pathClosed: z.boolean().optional(),
+    aiPromptPoints: z.array(promptPointSchema).optional(),
     // Mask fields
     isMask: z.boolean().optional(),
     maskType: maskTypeSchema.optional(),

@@ -17,6 +17,13 @@ export interface MaskBitmapSource {
   data: Uint8ClampedArray
 }
 
+/** A raw foreground alpha channel (0-255) with its dimensions. */
+export interface MaskAlphaSource {
+  width: number
+  height: number
+  alpha: Uint8Array
+}
+
 /** Pixels with alpha at or below this value are treated as background. */
 const DEFAULT_MASK_ALPHA_THRESHOLD = 32
 /** Simplification tolerance in source pixels. */
@@ -196,17 +203,12 @@ export function simplifyRing(
  * list of pixel-coordinate points. The returned list is open; its last point
  * connects back to the first to close the loop.
  */
-// fallow-ignore-next-line complexity
-export function traceMaskContourPixels(
-  source: MaskBitmapSource,
-  alphaThreshold = DEFAULT_MASK_ALPHA_THRESHOLD,
+function traceContourFromPredicate(
+  width: number,
+  height: number,
+  isForeground: (x: number, y: number) => boolean,
 ): Array<[number, number]> {
-  const { width, height, data } = source
   if (width <= 0 || height <= 0) return []
-  const isForeground = (x: number, y: number): boolean => {
-    if (x < 0 || y < 0 || x >= width || y >= height) return false
-    return (data[(y * width + x) * 4 + 3] ?? 0) > alphaThreshold
-  }
 
   const adjacency = new Map<string, string[]>()
   const keyOf = (point: [number, number]): string => `${point[0]},${point[1]}`
@@ -273,6 +275,39 @@ export function traceMaskContourPixels(
     if (loop.length > best.length) best = loop
   }
   return best
+}
+
+/**
+ * Extract the largest boundary contour of the foreground mask as an ordered
+ * list of pixel-coordinate points. The returned list is open; its last point
+ * connects back to the first to close the loop.
+ */
+// fallow-ignore-next-line complexity
+export function traceMaskContourPixels(
+  source: MaskBitmapSource,
+  alphaThreshold = DEFAULT_MASK_ALPHA_THRESHOLD,
+): Array<[number, number]> {
+  const { width, height, data } = source
+  return traceContourFromPredicate(width, height, (x, y) => {
+    if (x < 0 || y < 0 || x >= width || y >= height) return false
+    return (data[(y * width + x) * 4 + 3] ?? 0) > alphaThreshold
+  })
+}
+
+/**
+ * Same as {@link traceMaskContourPixels} but reads a raw foreground alpha
+ * channel instead of RGBA — the per-frame output of the MobileSAM worker.
+ * Avoids materializing an RGBA copy per tracked frame.
+ */
+export function traceMaskAlphaContourPixels(
+  source: MaskAlphaSource,
+  alphaThreshold = DEFAULT_MASK_ALPHA_THRESHOLD,
+): Array<[number, number]> {
+  const { width, height, alpha } = source
+  return traceContourFromPredicate(width, height, (x, y) => {
+    if (x < 0 || y < 0 || x >= width || y >= height) return false
+    return (alpha[y * width + x] ?? 0) > alphaThreshold
+  })
 }
 
 /**

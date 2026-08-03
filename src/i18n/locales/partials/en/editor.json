@@ -562,7 +562,13 @@
       "feather": "Feather",
       "resetFeather": "Reset to 10px",
       "resetToDefault": "Reset to default",
-      "invert": "Invert"
+      "invert": "Invert",
+      "trackMask": "Track Mask (beta)",
+      "trackMaskHint": "AI-trace this mask across every frame and write position + path keyframes.",
+      "trackingProgress": "Tracking mask {{done}}/{{total}}",
+      "trackingFrame": "frame {{frame}}",
+      "trackingCancel": "Cancel",
+      "trackingError": "Tracking failed: {{error}}"
     },
     "subtitleSection": {
       "title": "Subtitle",

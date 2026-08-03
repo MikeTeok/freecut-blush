@@ -37,6 +37,9 @@ export {
   useTimelineViewportStore,
   useTransitionsStore,
   useWaveform,
+  applyMaskTrackingKeyframes,
 } from '@/features/timeline/contracts/preview'
+
+export type { MaskTrackingKeyframeData } from '@/features/timeline/contracts/preview'
 
 export const importFilmstripCache = () => import('@/features/timeline/services/filmstrip-cache')
