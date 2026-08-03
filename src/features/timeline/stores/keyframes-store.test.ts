@@ -453,4 +453,100 @@ describe('useKeyframesStore', () => {
       expect(useKeyframesStore.getState().keyframesByItemId['item-1']).toBeUndefined()
     })
   })
+
+  describe('_upsertPropertiesKeyframes', () => {
+    it('creates item keyframes with merged per-property keyframes', () => {
+      useKeyframesStore.getState()._upsertPropertiesKeyframes('item-1', [
+        {
+          property: 'pathVertex:0:positionX',
+          keyframes: [
+            { frame: 0, value: 0.25 },
+            { frame: 5, value: 0.75 },
+          ],
+        },
+        {
+          property: 'pathVertex:0:positionY',
+          keyframes: [{ frame: 0, value: 0.4 }],
+        },
+        {
+          property: 'x',
+          keyframes: [{ frame: 5, value: 12 }],
+        },
+      ])
+
+      const stored = useKeyframesStore.getState().keyframesByItemId['item-1']
+      expect(stored).toBeDefined()
+      expect(stored!.animationVersion).toBe(2)
+      const positionX = useKeyframesStore
+        .getState()
+        .getAllKeyframesForProperty('item-1', 'pathVertex:0:positionX')
+      expect(positionX).toEqual([
+        {
+          id: expect.any(String),
+          frame: 0,
+          value: 0.25,
+          easing: 'linear',
+          easingConfig: undefined,
+          source: undefined,
+        },
+        {
+          id: expect.any(String),
+          frame: 5,
+          value: 0.75,
+          easing: 'linear',
+          easingConfig: undefined,
+          source: undefined,
+        },
+      ])
+    })
+
+    it('overwrites same-frame values while preserving hand-tuned frames elsewhere', () => {
+      useKeyframesStore.getState().setKeyframes([
+        {
+          itemId: 'item-1',
+          properties: [
+            {
+              property: 'x',
+              keyframes: [
+                { id: 'keep', frame: 2, value: 99, easing: 'linear' },
+                { id: 'hand', frame: 5, value: 5, easing: 'ease-in' },
+              ],
+            },
+          ],
+        },
+      ])
+
+      useKeyframesStore.getState()._upsertPropertiesKeyframes('item-1', [
+        {
+          property: 'x',
+          keyframes: [{ frame: 5, value: 50 }],
+        },
+      ])
+
+      const frames = useKeyframesStore.getState().getAllKeyframesForProperty('item-1', 'x')
+      expect(frames).toHaveLength(2)
+      expect(frames.map((keyframe) => [keyframe.frame, keyframe.value])).toEqual([
+        [2, 99],
+        [5, 50],
+      ])
+      const kept = frames.find((keyframe) => keyframe.frame === 2)
+      expect(kept!.id).toBe('keep')
+      const overwritten = frames.find((keyframe) => keyframe.frame === 5)
+      // same-frame upsert keeps the existing keyframe id and easing, but
+      // replaces its value with the incoming one
+      expect(overwritten!.id).toBe('hand')
+      expect(overwritten!.value).toBe(50)
+      expect(overwritten!.easing).toBe('ease-in')
+    })
+
+    it('adds no properties when every entry has an empty keyframe list', () => {
+      useKeyframesStore.getState()._upsertPropertiesKeyframes('item-1', [
+        { property: 'x', keyframes: [] },
+        { property: 'y', keyframes: [] },
+      ])
+      expect(useKeyframesStore.getState().getKeyframesForItem('item-1')?.properties ?? []).toEqual(
+        [],
+      )
+    })
+  })
 })

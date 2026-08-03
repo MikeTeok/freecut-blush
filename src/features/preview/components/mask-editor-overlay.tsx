@@ -1192,6 +1192,7 @@ export const MaskEditorOverlay = memo(function MaskEditorOverlay({
       verts: MaskVertex[],
       closed: boolean,
       projectSize: { width: number; height: number },
+      promptPoints?: import('@/types/masks').PromptPoint[],
     ): ShapeItem | null => {
       const bounds = getPathBounds(verts)
       if (!bounds) return null
@@ -1294,6 +1295,7 @@ export const MaskEditorOverlay = memo(function MaskEditorOverlay({
         shapeType: 'path',
         pathVertices: localVerts,
         pathClosed: closed,
+        aiPromptPoints: promptPoints,
         fillColor: '#3b82f6',
         fillEnabled: false,
         strokeColor: '#3b82f6',
@@ -1360,7 +1362,12 @@ export const MaskEditorOverlay = memo(function MaskEditorOverlay({
       stopAi()
       return
     }
-    const shapeItem = createPathShapeItem(verts, true, coordParams.projectSize)
+    const shapeItem = createPathShapeItem(
+      verts,
+      true,
+      coordParams.projectSize,
+      state.aiPromptPoints,
+    )
     if (!shapeItem) {
       toast.error('Could not place the AI mask shape on the timeline')
       stopAi()

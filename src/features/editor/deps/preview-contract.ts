@@ -20,6 +20,8 @@ export const importColorScopesMonitor = () =>
 export { useGizmoStore } from '@/features/preview/stores/gizmo-store'
 export type { ItemPreview, ItemPropertiesPreview } from '@/features/preview/stores/gizmo-store'
 export { useMaskEditorStore } from '@/features/preview/stores/mask-editor-store'
+export { useMaskTrackingStore } from '@/features/preview/stores/mask-tracking-store'
+export { startMaskTracking } from '@/features/preview/services/mask-tracking-service'
 export { useCornerPinStore } from '@/features/preview/stores/corner-pin-store'
 export { usePowerWindowEditorStore } from '@/features/preview/stores/power-window-editor-store'
 export { useSpatialEffectEditorStore } from '@/features/preview/stores/spatial-effect-editor-store'

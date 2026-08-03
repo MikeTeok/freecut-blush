@@ -41,3 +41,7 @@ export {
 } from '../utils/sub-composition-preview'
 export { createScrubThrottleState, shouldCommitScrubFrame } from '../utils/scrub-throttle'
 export { useWaveform } from '../hooks/use-waveform'
+export {
+  applyMaskTrackingKeyframes,
+  type MaskTrackingKeyframeData,
+} from '../stores/actions/mask-tracking-actions'

@@ -364,6 +364,12 @@ export type ShapeItem = BaseTimelineItem &
     pathVertices?: import('@/types/masks').MaskVertex[] // Normalized 0-1 vertices for 'path' shapeType
     /** Whether a custom path connects its final vertex back to its first. Legacy paths are closed. */
     pathClosed?: boolean
+    /**
+     * MobileSAM prompt points used to generate this AI mask, in canvas
+     * (project) pixel coordinates. Persisted so mask tracking can propagate
+     * the same prompts across frames.
+     */
+    aiPromptPoints?: import('@/types/masks').PromptPoint[]
     // Mask properties
     isMask?: boolean // When true, shape acts as mask for lower tracks
     maskType?: 'clip' | 'alpha' // clip = hard edges, alpha = soft edges

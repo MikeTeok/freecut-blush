@@ -37,6 +37,7 @@ import {
 } from '@/shared/graphics/shapes/linear-gradient'
 import { getPathClosureUpdates, getShapeSectionControlVisibility } from './shape-section-visibility'
 import { convertShapeToPath } from '@/features/editor/utils/convert-shape-to-path'
+import { MaskTrackingControl } from './mask-tracking-control'
 
 // Shape type options
 const SHAPE_TYPE_OPTIONS: { value: ShapeType; labelKey: string }[] = [
@@ -1262,6 +1263,9 @@ export function ShapeSection({ items }: ShapeSectionProps) {
               : t('editor.shapeSection.off')}
         </Button>
       </PropertyRow>
+
+      {/* Mask tracking (single path shapes only) */}
+      {singlePathShape && <MaskTrackingControl itemId={singlePathShape.id} />}
 
       {/* Mask settings - only show when isMask is true */}
       {(sharedValues.isMask === true || sharedValues.isMask === 'mixed') && (

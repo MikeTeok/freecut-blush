@@ -7,14 +7,10 @@
  */
 
 import { create } from 'zustand'
-import type { MaskVertex } from '@/types/masks'
+import type { MaskVertex, PromptPoint } from '@/types/masks'
 
 /** A single MobileSAM prompt point, in canvas (project) pixel coords. */
-export interface AiMaskPromptPoint {
-  x: number
-  y: number
-  label: 1 | -1
-}
+export type AiMaskPromptPoint = PromptPoint
 
 function normalizeVertexSelection(vertexIndices: number[]): number[] {
   return [...new Set(vertexIndices.filter((index) => Number.isInteger(index) && index >= 0))].sort(
