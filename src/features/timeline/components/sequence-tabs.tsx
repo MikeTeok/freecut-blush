@@ -79,7 +79,7 @@ export const SequenceTabs = memo(function SequenceTabs() {
   const isMainActive = activeTabId === null
 
   return (
-    <div className="flex items-center gap-1 px-2 py-1 border-b border-border bg-background/60 backdrop-blur-sm text-xs overflow-x-auto">
+    <div className="flex items-center gap-1 px-2 py-1 border-b border-border text-xs overflow-x-auto">
       <button
         type="button"
         onClick={() => switchToSequence(null)}

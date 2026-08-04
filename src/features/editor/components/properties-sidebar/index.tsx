@@ -1,14 +1,4 @@
-import {
-  Activity,
-  lazy,
-  memo,
-  Suspense,
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from 'react'
+import { Activity, lazy, memo, Suspense, useCallback, useEffect, useMemo, useState } from 'react'
 import { motion, useReducedMotion } from 'motion/react'
 import { useTranslation } from 'react-i18next'
 import { i18n } from '@/i18n'
@@ -23,12 +13,7 @@ import { useEditorStore } from '@/shared/state/editor'
 import { useSelectionStore } from '@/shared/state/selection'
 import type { TimelineItem } from '@/types/timeline'
 import { CanvasPanel } from './canvas-panel'
-import { useSettingsStore } from '@/features/editor/deps/settings'
-import {
-  EDITOR_LAYOUT_CSS_VALUES,
-  clampRightEditorSidebarWidth,
-  getEditorLayout,
-} from '@/config/editor-layout'
+import { EDITOR_LAYOUT_CSS_VALUES } from '@/config/editor-layout'
 
 function loadClipPropertiesPanel() {
   return import('./clip-panel').then((module) => ({ default: module.ClipPanel }))
@@ -126,13 +111,10 @@ function getClipHeader(items: HeaderItem[]) {
  */
 export const PropertiesSidebar = memo(function PropertiesSidebar() {
   const { t } = useTranslation()
-  const editorDensity = useSettingsStore((s) => s.editorDensity)
-  const editorLayout = getEditorLayout(editorDensity)
   // Use granular selectors - Zustand v5 best practice
   const rightSidebarOpen = useEditorStore((s) => s.rightSidebarOpen)
   const toggleRightSidebar = useEditorStore((s) => s.toggleRightSidebar)
   const rightSidebarWidth = useEditorStore((s) => s.rightSidebarWidth)
-  const setRightSidebarWidth = useEditorStore((s) => s.setRightSidebarWidth)
   const propertiesFullColumn = useEditorStore((s) => s.propertiesFullColumn)
   const togglePropertiesFullColumn = useEditorStore((s) => s.togglePropertiesFullColumn)
   const workspace = useEditorStore((s) => s.workspace)
@@ -199,49 +181,7 @@ export const PropertiesSidebar = memo(function PropertiesSidebar() {
     if (rightSidebarOpen) setContentVisible(true)
   }, [rightSidebarOpen])
 
-  // Resize handle logic
-  const isResizingRef = useRef(false)
-  const startXRef = useRef(0)
-  const startWidthRef = useRef(0)
-
-  const handleResizeStart = useCallback(
-    (e: React.MouseEvent) => {
-      e.preventDefault()
-      isResizingRef.current = true
-      startXRef.current = e.clientX
-      startWidthRef.current = rightSidebarWidth
-      document.body.style.cursor = 'col-resize'
-      document.body.style.userSelect = 'none'
-    },
-    [rightSidebarWidth],
-  )
-
-  useEffect(() => {
-    const handleMouseMove = (e: MouseEvent) => {
-      if (!isResizingRef.current) return
-      // Dragging left increases width for right sidebar
-      const delta = startXRef.current - e.clientX
-      const newWidth = clampRightEditorSidebarWidth(startWidthRef.current + delta, editorLayout)
-      setRightSidebarWidth(newWidth)
-    }
-
-    const handleMouseUp = () => {
-      if (!isResizingRef.current) return
-      isResizingRef.current = false
-      document.body.style.cursor = ''
-      document.body.style.userSelect = ''
-    }
-
-    document.addEventListener('mousemove', handleMouseMove)
-    document.addEventListener('mouseup', handleMouseUp)
-    return () => {
-      document.removeEventListener('mousemove', handleMouseMove)
-      document.removeEventListener('mouseup', handleMouseUp)
-      isResizingRef.current = false
-      document.body.style.cursor = ''
-      document.body.style.userSelect = ''
-    }
-  }, [editorLayout, setRightSidebarWidth])
+  const sidebarResizeActive = useEditorStore((s) => s.sidebarResizeActive)
 
   return (
     <>
@@ -257,7 +197,7 @@ export const PropertiesSidebar = memo(function PropertiesSidebar() {
         initial={false}
         animate={{ width: rightSidebarOpen ? rightSidebarWidth : 0 }}
         transition={
-          isResizingRef.current || prefersReducedMotion
+          sidebarResizeActive || prefersReducedMotion
             ? { duration: 0 }
             : { type: 'tween', duration: rightSidebarOpen ? 0.26 : 0.2, ease: [0.32, 0.72, 0, 1] }
         }
@@ -303,16 +243,11 @@ export const PropertiesSidebar = memo(function PropertiesSidebar() {
                 </Button>
                 <Settings2 className="w-3 h-3 shrink-0 text-muted-foreground" />
                 <h2 className="min-w-0 flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
-                  <span className="shrink-0 uppercase tracking-wide">
-                    {headerLabel}
-                  </span>
+                  <span className="shrink-0 uppercase tracking-wide">{headerLabel}</span>
                   {headerContext && (
                     <>
                       <span className="shrink-0">-</span>
-                      <span
-                        className="truncate normal-case tracking-normal"
-                        title={headerTitle}
-                      >
+                      <span className="truncate normal-case tracking-normal" title={headerTitle}>
                         {headerContext}
                       </span>
                     </>
@@ -378,34 +313,38 @@ export const PropertiesSidebar = memo(function PropertiesSidebar() {
             </div>
           </div>
         </Activity>
-        {/* Resize Handle */}
-        {rightSidebarOpen && (
-          <div
-            onMouseDown={handleResizeStart}
-            className="absolute top-0 left-0 w-1 h-full cursor-col-resize hover:bg-primary/50 active:bg-primary/50 transition-colors z-10"
-          />
-        )}
+        {/* Resize handle moved to the gap between panels (SidebarResizeHandle) */}
       </motion.div>
-
-      {/* Right Sidebar reveal toggle — matched to the in-header collapse button's
-          size, chevron, and top alignment so the arrow stays in the same place
-          and size when toggling (mirrors the always-present arrow on the left
-          sidebar rail). Edge-attached rounded tab keeps it discoverable. */}
-      {!rightSidebarOpen && (
-        <button
-          onClick={toggleRightSidebar}
-          className="absolute right-0 top-2 z-10 flex items-center justify-center rounded-l-md border border-r-0 border-border bg-secondary/50 hover:bg-secondary transition-colors"
-          style={{
-            width: EDITOR_LAYOUT_CSS_VALUES.sidebarHeaderButtonSize,
-            height: EDITOR_LAYOUT_CSS_VALUES.sidebarHeaderButtonSize,
-          }}
-          data-tooltip={t('editor.propertiesSidebar.showPanel')}
-          data-tooltip-side="left"
-          aria-label={t('editor.propertiesSidebar.showPanel')}
-        >
-          <ChevronLeft className="w-3.5 h-3.5 text-muted-foreground" />
-        </button>
-      )}
     </>
   )
 })
+
+/**
+ * Right sidebar reveal toggle, rendered as a sibling of the panel (not inside
+ * it) so it survives the collapse: the panel's `relative overflow-hidden`
+ * wrapper clips anything positioned against its ~0px box while closed.
+ * Mirrors the always-present collapse arrow on the left sidebar rail.
+ */
+export function PropertiesSidebarReveal() {
+  const rightSidebarOpen = useEditorStore((s) => s.rightSidebarOpen)
+  const toggleRightSidebar = useEditorStore((s) => s.toggleRightSidebar)
+  const { t } = useTranslation()
+
+  if (rightSidebarOpen) return null
+
+  return (
+    <button
+      onClick={toggleRightSidebar}
+      className="absolute right-0 top-2 z-10 flex items-center justify-center rounded-l-md border border-r-0 border-border bg-secondary/50 hover:bg-secondary transition-colors"
+      style={{
+        width: EDITOR_LAYOUT_CSS_VALUES.sidebarHeaderButtonSize,
+        height: EDITOR_LAYOUT_CSS_VALUES.sidebarHeaderButtonSize,
+      }}
+      data-tooltip={t('editor.propertiesSidebar.showPanel')}
+      data-tooltip-side="left"
+      aria-label={t('editor.propertiesSidebar.showPanel')}
+    >
+      <ChevronLeft className="w-3.5 h-3.5 text-muted-foreground" />
+    </button>
+  )
+}

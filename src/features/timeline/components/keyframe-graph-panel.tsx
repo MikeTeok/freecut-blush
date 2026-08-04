@@ -3519,7 +3519,7 @@ export const KeyframeGraphPanel = memo(function KeyframeGraphPanel({
         }
       }}
       className={cn(
-        'flex-shrink-0 bg-background overflow-hidden outline-none',
+        'flex-shrink-0 timeline-bg overflow-hidden outline-none',
         isSidePlacement ? 'flex h-full min-h-0 border-0' : 'flex flex-col',
         placement === 'top' ? 'border-b border-border' : 'border-t border-border',
         isOpen ? 'opacity-100' : 'opacity-90',

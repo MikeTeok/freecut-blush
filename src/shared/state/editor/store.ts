@@ -26,7 +26,7 @@ function loadTrackSizePreset(): TrackSizePreset {
   } catch {
     /* noop */
   }
-  return 'medium'
+  return 'compact'
 }
 
 function workspaceLayoutStorageKey(workspace: EditorWorkspaceId): string {
@@ -134,6 +134,7 @@ export const useEditorStore = create<EditorState & EditorActions>((set) => ({
     'editor:rightSidebarWidth',
     EDITOR_LAYOUT.rightSidebarDefaultWidth,
   ),
+  sidebarResizeActive: false,
   timelineHeight: 250,
   sourcePreviewMediaId: null,
   mediaSkimPreviewMediaId: null,
@@ -226,6 +227,7 @@ export const useEditorStore = create<EditorState & EditorActions>((set) => ({
     }
     set({ rightSidebarWidth: width })
   },
+  setSidebarResizeActive: (active) => set({ sidebarResizeActive: active }),
   syncSidebarLayout: (layout) =>
     set((currentState) => ({
       sidebarWidth: normalizeSidebarWidth(

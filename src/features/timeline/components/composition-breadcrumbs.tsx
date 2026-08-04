@@ -17,7 +17,7 @@ export const CompositionBreadcrumbs = memo(function CompositionBreadcrumbs() {
   if (breadcrumbs.length <= 1) return null
 
   return (
-    <div className="flex items-center gap-1 px-3 py-1.5 bg-background/80 backdrop-blur-sm border-b border-border text-xs">
+    <div className="flex items-center gap-1 px-3 py-1.5 border-b border-border text-xs">
       {breadcrumbs.map((crumb, index) => {
         const isLast = index === breadcrumbs.length - 1
         return (

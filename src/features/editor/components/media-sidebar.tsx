@@ -58,7 +58,6 @@ import { EFFECT_PRESETS } from '@/types/effects'
 import { getGpuEffectDefaultParams } from '@/infrastructure/gpu-effects'
 import { EffectThumbnail, useGpuEffectPreviewData } from '@/features/editor/deps/effects-contract'
 import { createLogger } from '@/shared/logging/logger'
-import { useSettingsStore } from '@/features/editor/deps/settings'
 import { resolveGeneratedLayerCanvasSize } from '../utils/generated-layer-canvas-size'
 const LazyAiPanel = lazy(() => import('./ai-tab').then((m) => ({ default: m.AiTab })))
 const LazyTranscriptEditorPanel = lazy(() =>
@@ -71,11 +70,7 @@ import {
   type TextStylePresetLayout,
   type TextStylePreset,
 } from '@/shared/typography/text-style-presets'
-import {
-  EDITOR_LAYOUT_CSS_VALUES,
-  clampLeftEditorSidebarWidth,
-  getEditorLayout,
-} from '@/config/editor-layout'
+import { EDITOR_LAYOUT_CSS_VALUES } from '@/config/editor-layout'
 
 const logger = createLogger('MediaSidebar')
 const TEXT_TEMPLATE_PREVIEW_SHELL =
@@ -288,8 +283,6 @@ const ADD_TEXT_TEMPLATE_LABEL = 'Add Text'
 
 export const MediaSidebar = memo(function MediaSidebar() {
   const { t } = useTranslation()
-  const editorDensity = useSettingsStore((s) => s.editorDensity)
-  const editorLayout = getEditorLayout(editorDensity)
   // Use granular selectors - Zustand v5 best practice
   const leftSidebarOpen = useEditorStore((s) => s.leftSidebarOpen)
   const toggleLeftSidebar = useEditorStore((s) => s.toggleLeftSidebar)
@@ -298,7 +291,7 @@ export const MediaSidebar = memo(function MediaSidebar() {
   const activeTab = useEditorStore((s) => s.activeTab)
   const setActiveTab = useEditorStore((s) => s.setActiveTab)
   const sidebarWidth = useEditorStore((s) => s.sidebarWidth)
-  const setSidebarWidth = useEditorStore((s) => s.setSidebarWidth)
+  const sidebarResizeActive = useEditorStore((s) => s.sidebarResizeActive)
   const prefersReducedMotion = useReducedMotion()
 
   const [aiTabActivated, setAiTabActivated] = useState(activeTab === 'ai')
@@ -331,49 +324,7 @@ export const MediaSidebar = memo(function MediaSidebar() {
   // 0 width so it isn't painted; the only residual cost is occasional
   // reconciliation, which is negligible for this panel.
 
-  // Resize handle logic
-  const isResizingRef = useRef(false)
-  const startXRef = useRef(0)
-  const startWidthRef = useRef(0)
   const suppressGeneratedItemClickRef = useRef(false)
-
-  const handleResizeStart = useCallback(
-    (e: React.MouseEvent) => {
-      e.preventDefault()
-      isResizingRef.current = true
-      startXRef.current = e.clientX
-      startWidthRef.current = sidebarWidth
-      document.body.style.cursor = 'col-resize'
-      document.body.style.userSelect = 'none'
-    },
-    [sidebarWidth],
-  )
-
-  useEffect(() => {
-    const handleMouseMove = (e: MouseEvent) => {
-      if (!isResizingRef.current) return
-      const delta = e.clientX - startXRef.current
-      const newWidth = clampLeftEditorSidebarWidth(startWidthRef.current + delta, editorLayout)
-      setSidebarWidth(newWidth)
-    }
-
-    const handleMouseUp = () => {
-      if (!isResizingRef.current) return
-      isResizingRef.current = false
-      document.body.style.cursor = ''
-      document.body.style.userSelect = ''
-    }
-
-    document.addEventListener('mousemove', handleMouseMove)
-    document.addEventListener('mouseup', handleMouseUp)
-    return () => {
-      document.removeEventListener('mousemove', handleMouseMove)
-      document.removeEventListener('mouseup', handleMouseUp)
-      isResizingRef.current = false
-      document.body.style.cursor = ''
-      document.body.style.userSelect = ''
-    }
-  }, [editorLayout, setSidebarWidth])
 
   // NOTE: Don't subscribe to tracks, items, currentProject here!
   // These change frequently and would cause re-renders cascading to MediaLibrary/MediaCards
@@ -661,7 +612,7 @@ export const MediaSidebar = memo(function MediaSidebar() {
         initial={false}
         animate={{ width: leftSidebarOpen ? sidebarWidth : 0 }}
         transition={
-          isResizingRef.current || prefersReducedMotion
+          sidebarResizeActive || prefersReducedMotion
             ? { duration: 0 }
             : { type: 'tween', duration: leftSidebarOpen ? 0.26 : 0.2, ease: [0.32, 0.72, 0, 1] }
         }
@@ -1181,14 +1132,7 @@ export const MediaSidebar = memo(function MediaSidebar() {
             </div>
           </>
         </div>
-        {/* Resize Handle */}
-        {leftSidebarOpen && (
-          <div
-            data-resize-handle
-            onMouseDown={handleResizeStart}
-            className="absolute top-0 right-0 w-1 h-full cursor-col-resize hover:bg-primary/50 active:bg-primary/50 transition-colors z-10"
-          />
-        )}
+        {/* Resize handle moved to the gap between panels (SidebarResizeHandle) */}
       </motion.div>
     </div>
   )

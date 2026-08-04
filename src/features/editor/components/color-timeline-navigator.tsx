@@ -366,7 +366,7 @@ export const ColorTimelineNavigator = memo(function ColorTimelineNavigator() {
 
   return (
     <section
-      className="panel-bg shrink-0 overflow-hidden border-y border-border bg-[#24252b]"
+      className="panel-bg shrink-0 overflow-hidden border-y border-border"
       aria-label={t('editor.colorTimeline.label')}
       data-testid="color-timeline-navigator"
       style={{ height: STRIP_HEIGHT }}

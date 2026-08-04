@@ -78,6 +78,7 @@ vi.mock('./media-sidebar', () => ({
 
 vi.mock('./properties-sidebar', () => ({
   PropertiesSidebar: () => <div data-testid="properties-sidebar" />,
+  PropertiesSidebarReveal: () => <div data-testid="properties-sidebar-reveal" />,
 }))
 
 vi.mock('./preview-area', () => ({
@@ -234,6 +235,13 @@ vi.mock('@/shared/state/editor', () => ({
       propertiesFullColumn: boolean
       mediaFullColumn: boolean
       workspace: string
+      leftSidebarOpen: boolean
+      rightSidebarOpen: boolean
+      sidebarWidth: number
+      rightSidebarWidth: number
+      setSidebarWidth: () => void
+      setRightSidebarWidth: () => void
+      setSidebarResizeActive: () => void
     }) => unknown,
   ) =>
     selector({
@@ -241,6 +249,13 @@ vi.mock('@/shared/state/editor', () => ({
       propertiesFullColumn: mocks.editorState.propertiesFullColumn,
       mediaFullColumn: mocks.editorState.mediaFullColumn,
       workspace: mocks.editorState.workspace,
+      leftSidebarOpen: true,
+      rightSidebarOpen: true,
+      sidebarWidth: 320,
+      rightSidebarWidth: 288,
+      setSidebarWidth: () => {},
+      setRightSidebarWidth: () => {},
+      setSidebarResizeActive: () => {},
     }),
 }))
 

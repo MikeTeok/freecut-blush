@@ -1192,7 +1192,7 @@ export const AudioMixerView = memo(function AudioMixerView({
       {/* Header — only shown when docked (floating panel has its own title bar) */}
       {!expanded && (
         <div
-          className="flex min-w-0 items-center justify-between gap-2 border-b border-border bg-secondary/20 px-2"
+          className="flex min-w-0 items-center justify-between gap-2 border-b border-border px-2"
           style={{ height: EDITOR_LAYOUT_CSS_VALUES.timelineTracksHeaderHeight }}
         >
           <span className="min-w-0 text-xs text-muted-foreground font-mono uppercase tracking-[0.18em]">

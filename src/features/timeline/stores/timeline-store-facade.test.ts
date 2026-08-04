@@ -99,7 +99,8 @@ vi.mock('@/shared/projects/migrations', () => ({
 
 // Import stores and facade after mocks
 import { useItemsStore } from './items-store'
-import { DEFAULT_TRACK_HEIGHT } from '../constants'
+import { useEditorStore, type TrackSizePreset } from '@/shared/state/editor'
+import { TRACK_SIZE_PRESET_HEIGHTS } from '../constants'
 import { useTransitionsStore } from './transitions-store'
 import { useKeyframesStore } from './keyframes-store'
 import { useMarkersStore } from './markers-store'
@@ -261,8 +262,11 @@ describe('TimelineStoreFacade', () => {
 
       useTimelineStore.setState({ tracks: [track] })
 
-      // Height is a local view preference, so the stored 80 is discarded.
-      expect(useItemsStore.getState().tracks).toEqual([{ ...track, height: DEFAULT_TRACK_HEIGHT }])
+      // Height is a local view preference, so the stored 80 is discarded in favour of the current preset.
+      const trackSizePreset = useEditorStore.getState().trackSizePreset as TrackSizePreset
+      expect(useItemsStore.getState().tracks).toEqual([
+        { ...track, height: TRACK_SIZE_PRESET_HEIGHTS[trackSizePreset] },
+      ])
     })
 
     it('maps fps to settings store', () => {
@@ -1115,9 +1119,12 @@ describe('TimelineStoreFacade', () => {
       expect(
         savedTimeline.compositions?.find((composition) => composition.id === 'motion-comp'),
       ).toMatchObject({
-        items: [expect.objectContaining({ id: 'motion-base' }), expect.objectContaining({
-          id: 'motion-unsaved',
-        })],
+        items: [
+          expect.objectContaining({ id: 'motion-base' }),
+          expect.objectContaining({
+            id: 'motion-unsaved',
+          }),
+        ],
         durationInFrames: 100,
         busAudioEq: motionBus,
         markers: motionMarkers,

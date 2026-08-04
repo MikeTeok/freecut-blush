@@ -23,9 +23,9 @@ export const TIMELINE_SIDEBAR_WIDTH = EDITOR_LAYOUT.timelineSidebarWidth
 export const MIN_TRACK_HEIGHT = 48
 export const MAX_TRACK_HEIGHT = 140
 
-// "Compact" track-size preset — comfortably above the bare minimum so clip
-// content stays legible.
-export const COMPACT_TRACK_HEIGHT = 72
+// "Compact" track-size preset (the default). Kept close to the bare minimum so
+// dense timelines stay readable; the filmstrip fills the full clip surface.
+export const COMPACT_TRACK_HEIGHT = 56
 export const TRACK_SECTION_DIVIDER_HEIGHT = 3
 
 // Track heights behind the Track Size presets. The chosen preset is persisted

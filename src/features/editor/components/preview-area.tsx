@@ -790,34 +790,24 @@ export const PreviewArea = memo(function PreviewArea({
             </div>
           ) : (
             <InteractionLockRegion locked={false} overlayClassName="rounded-none">
-              <div className="flex flex-col flex-shrink-0">
-                {previewChrome === 'edit' && (
-                  <div className="border-t border-border panel-header flex h-7 items-center justify-center overflow-hidden px-3">
-                    <div className="flex items-center gap-0">
-                      <AlignmentToolbar projectSize={{ width, height }} />
-                    </div>
-                  </div>
-                )}
+              <div
+                className="@container border-t border-border panel-header relative flex items-center px-3 overflow-hidden"
+                style={{ height: EDITOR_LAYOUT_CSS_VALUES.previewControlsHeight }}
+              >
+                <div className="flex flex-shrink-0 items-center gap-2">
+                  <TimecodeDisplay fps={fps} totalFrames={totalFrames} />
+                  <ProgramShuttleIndicator />
+                </div>
 
-                {/* Playback controls row */}
-                <div
-                  className="@container border-t border-border panel-header relative flex items-center px-3 overflow-hidden"
-                  style={{ height: EDITOR_LAYOUT_CSS_VALUES.previewControlsHeight }}
-                >
-                  <div className="flex flex-shrink-0 items-center gap-2">
-                    <TimecodeDisplay fps={fps} totalFrames={totalFrames} />
-                    <ProgramShuttleIndicator />
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                  <div className="flex items-center gap-2.5 pointer-events-auto">
+                    <PlaybackControls totalFrames={totalFrames} fps={fps} />
                   </div>
+                </div>
 
-                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                    <div className="flex items-center gap-2.5 pointer-events-auto">
-                      <PlaybackControls totalFrames={totalFrames} fps={fps} />
-                    </div>
-                  </div>
-
-                  <div className="ml-auto flex-shrink-0">
-                    <PreviewZoomControls />
-                  </div>
+                <div className="ml-auto flex-shrink-0 flex items-center gap-0">
+                  {previewChrome === 'edit' && <AlignmentToolbar projectSize={{ width, height }} />}
+                  <PreviewZoomControls />
                 </div>
               </div>
             </InteractionLockRegion>

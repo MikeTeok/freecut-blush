@@ -2,21 +2,20 @@ import { memo, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 import {
-  ArrowLeft,
   BookOpen,
   Bug,
   ChevronDown,
   Download,
-  FolderArchive,
+  Film,
   Github,
   Keyboard,
   ListVideo,
   Save,
   Settings,
   Sparkles,
-  Video,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { FreecutBlushLogo } from '@/components/brand/freecut-blush-logo'
 import { DiscordIcon } from '@/components/brand/discord-icon'
 import { DISCORD_INVITE_URL } from '@/config/community'
 import {
@@ -164,12 +163,12 @@ export const Toolbar = memo(function Toolbar({
 
   return (
     <div
-      className="flex flex-shrink-0 items-center gap-2.5 border-b border-border bg-card px-3"
+      className="flex flex-shrink-0 items-center gap-2.5 bg-background px-3"
       style={{ height: EDITOR_LAYOUT_CSS_VALUES.toolbarHeight }}
       role="toolbar"
       aria-label={t('toolbar.ariaLabel')}
     >
-      <div className="flex items-center gap-2.5">
+      <div className="flex flex-1 items-center gap-2.5">
         <Button
           variant="ghost"
           size="icon"
@@ -179,7 +178,7 @@ export const Toolbar = memo(function Toolbar({
           data-tooltip-side="right"
           aria-label={t('toolbar.backToProjectsAria')}
         >
-          <ArrowLeft className="h-4 w-4" />
+          <FreecutBlushLogo variant="full" size="sm" />
         </Button>
 
         <UnsavedChangesDialog
@@ -209,7 +208,7 @@ export const Toolbar = memo(function Toolbar({
         </div>
       </div>
 
-      <div className="flex flex-1 items-center justify-center">
+      <div className="flex items-center justify-center">
         <WorkspaceSwitcher />
       </div>
 
@@ -221,7 +220,7 @@ export const Toolbar = memo(function Toolbar({
 
       <WhatsNewDialog open={showWhatsNewDialog} onOpenChange={setShowWhatsNewDialog} />
 
-      <div className="flex items-center gap-1.5">
+      <div className="flex flex-1 items-center justify-end gap-1.5">
         {import.meta.env.DEV && import.meta.env.VITE_SHOW_DEBUG_PANEL !== 'false' && (
           <DebugPopover projectId={projectId} />
         )}
@@ -348,25 +347,100 @@ export const Toolbar = memo(function Toolbar({
           </Button>
         )}
 
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button size="sm" className="gap-1.5 glow-primary-sm">
-              <Download className="h-4 w-4" />
-              {t('toolbar.export')}
-              <ChevronDown className="h-3 w-3" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem onClick={onExport} className="gap-2">
-              <Video className="h-4 w-4" />
-              {t('toolbar.exportVideo')}
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={onExportBundle} className="gap-2">
-              <FolderArchive className="h-4 w-4" />
-              {t('toolbar.downloadProjectZip')}
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        {/* Export split button */}
+        <div className="flex items-stretch">
+          <button
+            type="button"
+            onClick={onExport}
+            className="flex items-center gap-2.5 px-4 py-1.5 text-sm font-semibold rounded-l-lg border-none cursor-pointer relative overflow-hidden transition-transform"
+            style={{
+              background: 'linear-gradient(135deg, var(--foam, #9ccfd8), var(--iris, #c4a7e7))',
+              color: '#232136',
+              boxShadow: '0 0 0 1px var(--overlay, #393552), 0 8px 24px -8px rgba(156,207,216,0.4)',
+            }}
+            onMouseDown={(e) => {
+              e.currentTarget.style.transform = 'scale(0.98)'
+            }}
+            onMouseUp={(e) => {
+              e.currentTarget.style.transform = 'scale(1)'
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = 'scale(1)'
+            }}
+          >
+            <Download className="h-4 w-4 relative z-10" />
+            <span className="relative z-10">{t('toolbar.export')}</span>
+          </button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                className="flex items-center justify-center w-9 rounded-r-lg cursor-pointer transition-colors"
+                style={{
+                  background: 'var(--panel-header, #2a273f)',
+                  border: '1px solid var(--overlay, #393552)',
+                  borderLeft: '1px solid #232136',
+                  color: 'var(--muted-foreground, #908caa)',
+                }}
+              >
+                <ChevronDown className="h-3.5 w-3.5" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent
+              align="end"
+              className="min-w-[220px] rounded-xl p-1.5"
+              style={{
+                background: 'var(--panel-header, #2a273f)',
+                border: '1px solid var(--overlay, #393552)',
+                boxShadow:
+                  '0 16px 40px -12px rgba(0,0,0,0.6), 0 0 0 1px var(--panel-header, #2a273f)',
+              }}
+            >
+              <div className="flex items-center gap-1.5 px-2.5 pb-2 pt-1.5 text-[11px] uppercase tracking-wider text-muted-foreground">
+                <Film className="h-3 w-3" />
+                Export format
+              </div>
+              <DropdownMenuItem onClick={onExport} className="gap-3 rounded-lg py-2.5 px-2.5">
+                <span className="flex w-full items-center gap-3">
+                  <span
+                    className="h-2 w-2 shrink-0 rounded-full"
+                    style={{
+                      background: 'var(--foam, #9ccfd8)',
+                      boxShadow: '0 0 8px var(--foam, #9ccfd8)',
+                    }}
+                  />
+                  <span className="flex flex-col">
+                    <span className="text-sm font-semibold text-foreground">
+                      {t('toolbar.exportVideo')}
+                    </span>
+                    <span className="text-[11px] text-muted-foreground">
+                      Render &amp; save video file
+                    </span>
+                  </span>
+                </span>
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={onExportBundle} className="gap-3 rounded-lg py-2.5 px-2.5">
+                <span className="flex w-full items-center gap-3">
+                  <span
+                    className="h-2 w-2 shrink-0 rounded-full"
+                    style={{
+                      background: 'var(--iris, #c4a7e7)',
+                      boxShadow: '0 0 8px var(--iris, #c4a7e7)',
+                    }}
+                  />
+                  <span className="flex flex-col">
+                    <span className="text-sm font-semibold text-foreground">
+                      {t('toolbar.downloadProjectZip')}
+                    </span>
+                    <span className="text-[11px] text-muted-foreground">
+                      Package project for sharing
+                    </span>
+                  </span>
+                </span>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </div>
     </div>
   )

@@ -941,6 +941,12 @@ const WidthGatedMediaClipContent = memo(function WidthGatedMediaClipContent(
 
   perfMarkRender('ClipContent')
 
+  // Video filmstrips bleed under the label bar so the clip surface reads as one
+  // continuous image; the label becomes a floating overlay with a scrim behind
+  // it instead of a solid header band. The overlay shell stays mounted across
+  // LOD changes (only `hidden` toggles) so demotion never remounts the label.
+  const isVideo = item.type === 'video'
+
   return (
     <div
       className="absolute inset-0 flex flex-col"
@@ -948,15 +954,7 @@ const WidthGatedMediaClipContent = memo(function WidthGatedMediaClipContent(
       hidden={!hasVisibleClipContent}
       style={!hasVisibleClipContent ? { display: 'none' } : undefined}
     >
-      <MediaClipLabel
-        label={item.label}
-        isLinked={isLinked}
-        linkedSyncOffsetLabel={linkedSyncOffsetLabel}
-        showLinkIcon={showLinkIcon}
-        showLabel={showLabel}
-        showSyncOffset={showSyncOffset}
-      />
-      {showVisualDetail && item.type === 'video' && (
+      {showVisualDetail && isVideo && (
         <VideoClipVisualContent {...props} item={item as MediaTimelineItem & { type: 'video' }} />
       )}
       {showVisualDetail && item.type === 'audio' && (
@@ -964,6 +962,33 @@ const WidthGatedMediaClipContent = memo(function WidthGatedMediaClipContent(
       )}
       {showVisualDetail && item.type === 'image' && (
         <ImageClipVisualContent {...props} item={item as MediaTimelineItem & { type: 'image' }} />
+      )}
+      {isVideo ? (
+        <div
+          className="pointer-events-none absolute inset-x-0 top-0 z-10 h-8 overflow-hidden"
+          hidden={!showLabel && !showLinkIcon && !showSyncOffset}
+        >
+          <div className="absolute inset-0 bg-gradient-to-b from-black/55 via-black/20 to-transparent" />
+          <div className="relative">
+            <MediaClipLabel
+              label={item.label}
+              isLinked={isLinked}
+              linkedSyncOffsetLabel={linkedSyncOffsetLabel}
+              showLinkIcon={showLinkIcon}
+              showLabel={showLabel}
+              showSyncOffset={showSyncOffset}
+            />
+          </div>
+        </div>
+      ) : (
+        <MediaClipLabel
+          label={item.label}
+          isLinked={isLinked}
+          linkedSyncOffsetLabel={linkedSyncOffsetLabel}
+          showLinkIcon={showLinkIcon}
+          showLabel={showLabel}
+          showSyncOffset={showSyncOffset}
+        />
       )}
     </div>
   )

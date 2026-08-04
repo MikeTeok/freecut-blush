@@ -215,8 +215,7 @@ export const AudioMeterPanel = memo(function AudioMeterPanel() {
   const audioGraphItems = useItemsStore(
     useShallow((state) =>
       state.items.filter(
-        (item) =>
-          item.type === 'audio' || item.type === 'video' || item.type === 'composition',
+        (item) => item.type === 'audio' || item.type === 'video' || item.type === 'composition',
       ),
     ),
   )
@@ -1116,7 +1115,7 @@ export const AudioMeterPanel = memo(function AudioMeterPanel() {
         aria-label={t('editor.audioMeters.audioMeter')}
       >
         <div
-          className="flex min-w-0 items-center justify-between gap-1 border-b border-border bg-secondary/20 px-1.5"
+          className="flex min-w-0 items-center justify-between gap-1 border-b border-border px-1.5"
           style={{ height: EDITOR_LAYOUT_CSS_VALUES.timelineTracksHeaderHeight }}
         >
           <span className="min-w-0 text-xs text-muted-foreground font-mono uppercase tracking-[0.12em]">

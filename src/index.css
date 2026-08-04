@@ -34,7 +34,8 @@ body.preview-panning * {
     /* A muted, purple-dark base with pink (love/rose) as the main signal */
 
     /* Base */
-    --background: #232136;
+    /* Darkest Rosé Pine base so panels pop against the gutter/page background */
+    --background: #191724;
     --foreground: #e0def4;
 
     /* Panels - Layered depth */
@@ -69,10 +70,12 @@ body.preview-panning * {
     --input: #393552;
     --ring: #eb6f92;
 
-    /* Panel system - Layered depth */
-    --panel-bg: #2a273f;
+    /* Panel system - Unified layered depth.
+       All panel surfaces share one color: darker than the page/gutter
+       (#191724) so panels read as one raised surface against it. */
+    --panel-bg: #232136;
     --panel-header: #232136;
-    --timeline-bg: #1e1d32;
+    --timeline-bg: #232136;
 
     /* Sidebar */
     --sidebar: #2a273f;
@@ -91,6 +94,9 @@ body.preview-panning * {
     --foam: #9ccfd8;
     --iris: #c4a7e7;
     --muted-light: #908caa;
+
+    /* Panel outline - distinct Rosé Pine color so panels pop from the gutter */
+    --panel-outline: #908caa;
 
     --radius: 0.5rem;
   }
@@ -203,6 +209,7 @@ body.preview-panning * {
   --color-panel-bg: var(--panel-bg);
   --color-panel-header: var(--panel-header);
   --color-timeline-bg: var(--timeline-bg);
+  --color-panel-outline: var(--panel-outline);
 
   /* Rosé Pine palette */
   --color-rose: var(--rose);
@@ -404,4 +411,9 @@ body.preview-panning * {
   .animate-pulse-subtle {
     animation: none;
   }
+}
+
+@keyframes toolbar-ripple {
+  0% { transform: scale(0); opacity: 0.55; }
+  100% { transform: scale(9); opacity: 0; }
 }

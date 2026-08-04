@@ -935,7 +935,7 @@ export const Timeline = memo(function Timeline({ duration }: TimelineProps) {
   return (
     <div
       className={cn(
-        'timeline-bg h-full border-t border-border overflow-hidden',
+        'timeline-bg h-full overflow-hidden',
         isKeyframePanelSide ? 'flex' : 'flex flex-col',
       )}
       role="region"
@@ -968,7 +968,7 @@ export const Timeline = memo(function Timeline({ duration }: TimelineProps) {
           >
             {/* Tracks label with controls */}
             <div
-              className="flex items-center justify-between px-3 border-b border-border bg-secondary/20 flex-shrink-0"
+              className="flex items-center justify-between px-3 border-b border-border flex-shrink-0"
               style={{ height: EDITOR_LAYOUT_CSS_VALUES.timelineTracksHeaderHeight }}
             >
               {/* Track size flyout */}

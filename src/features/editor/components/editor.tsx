@@ -8,10 +8,11 @@ import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/componen
 import { ErrorBoundary } from '@/app/error-boundary'
 import { Toolbar } from './toolbar'
 import { MediaSidebar } from './media-sidebar'
-import { PropertiesSidebar } from './properties-sidebar'
+import { PropertiesSidebar, PropertiesSidebarReveal } from './properties-sidebar'
 import { PreviewArea } from './preview-area'
 import { MotionPreviewArea, MotionTimelineDock } from './compose-workspace/compose-layout'
 import { InteractionLockRegion } from './interaction-lock-region'
+import { SidebarResizeHandle } from './sidebar-resize-handle'
 import { AudioMeterPanel } from './audio-meter-panel'
 import {
   importTimeline,
@@ -399,6 +400,7 @@ export const LoadedEditor = memo(function LoadedEditor({
   const syncSidebarLayout = useEditorStore((s) => s.syncSidebarLayout)
   const propertiesFullColumn = useEditorStore((s) => s.propertiesFullColumn)
   const mediaFullColumn = useEditorStore((s) => s.mediaFullColumn)
+  const rightSidebarOpen = useEditorStore((s) => s.rightSidebarOpen)
   const workspace = useEditorStore((s) => s.workspace)
   const isMaskEditingActive = useMaskEditorStore((s) => s.isEditing)
   const hasRefreshedMigrationStateRef = useRef(false)
@@ -677,7 +679,7 @@ export const LoadedEditor = memo(function LoadedEditor({
       <TimelineShortcutsController />
 
       {/* Top Toolbar */}
-      <InteractionLockRegion locked={isMaskEditingActive}>
+      <InteractionLockRegion locked={isMaskEditingActive} className="shrink-0">
         <Toolbar
           projectId={projectId}
           project={project}
@@ -690,14 +692,23 @@ export const LoadedEditor = memo(function LoadedEditor({
       </InteractionLockRegion>
 
       {/* Main Layout: Full-height sidebar + vertical split */}
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex-1 flex overflow-hidden px-2 pb-2">
         {/* Left Sidebar - Media Library (full column mode) */}
         {mediaFullColumn && !hidesDefaultSidebars && (
-          <InteractionLockRegion locked={isMaskEditingActive}>
-            <ErrorBoundary level="feature">
-              <MediaSidebar />
-            </ErrorBoundary>
-          </InteractionLockRegion>
+          <>
+            <InteractionLockRegion
+              locked={isMaskEditingActive}
+              className="rounded-lg border border-panel-outline/60 overflow-hidden shrink-0"
+            >
+              <ErrorBoundary level="feature">
+                <MediaSidebar />
+              </ErrorBoundary>
+            </InteractionLockRegion>
+            <SidebarResizeHandle
+              side="left"
+              className={isMaskEditingActive ? 'pointer-events-none opacity-60' : undefined}
+            />
+          </>
         )}
 
         {/* Right side: Preview/Properties + Timeline */}
@@ -737,29 +748,50 @@ export const LoadedEditor = memo(function LoadedEditor({
               <div className="h-full flex overflow-hidden relative">
                 {/* Left Sidebar - Media Library (inline with preview) */}
                 {!mediaFullColumn && (
-                  <InteractionLockRegion locked={isMaskEditingActive}>
-                    <ErrorBoundary level="feature">
-                      <MediaSidebar />
-                    </ErrorBoundary>
-                  </InteractionLockRegion>
+                  <>
+                    <InteractionLockRegion
+                      locked={isMaskEditingActive}
+                      className="rounded-lg border border-panel-outline/60 overflow-hidden shrink-0"
+                    >
+                      <ErrorBoundary level="feature">
+                        <MediaSidebar />
+                      </ErrorBoundary>
+                    </InteractionLockRegion>
+                    <SidebarResizeHandle
+                      side="left"
+                      className={isMaskEditingActive ? 'pointer-events-none opacity-60' : undefined}
+                    />
+                  </>
                 )}
 
                 {/* Center - Preview */}
-                <ErrorBoundary level="feature">
-                  {isMotionWorkspace ? (
-                    <MotionPreviewArea project={project} />
-                  ) : (
-                    <PreviewArea project={project} />
-                  )}
-                </ErrorBoundary>
+                <div className="flex min-h-0 min-w-0 flex-1 flex-col rounded-lg border border-panel-outline/60 overflow-hidden">
+                  <ErrorBoundary level="feature">
+                    {isMotionWorkspace ? (
+                      <MotionPreviewArea project={project} />
+                    ) : (
+                      <PreviewArea project={project} />
+                    )}
+                  </ErrorBoundary>
+                </div>
 
                 {/* Right Sidebar - Properties (inline with preview) */}
                 {!propertiesFullColumn && (
-                  <InteractionLockRegion locked={isMaskEditingActive}>
-                    <ErrorBoundary level="feature">
-                      <PropertiesSidebar />
-                    </ErrorBoundary>
-                  </InteractionLockRegion>
+                  <div className="relative shrink-0 flex">
+                    <SidebarResizeHandle
+                      side="right"
+                      className={isMaskEditingActive ? 'pointer-events-none opacity-60' : undefined}
+                    />
+                    <InteractionLockRegion
+                      locked={isMaskEditingActive}
+                      className={`rounded-lg overflow-hidden shrink-0${rightSidebarOpen ? ' border border-panel-outline/60' : ''}`}
+                    >
+                      <ErrorBoundary level="feature">
+                        <PropertiesSidebar />
+                      </ErrorBoundary>
+                    </InteractionLockRegion>
+                    <PropertiesSidebarReveal />
+                  </div>
                 )}
               </div>
             </ResizablePanel>
@@ -776,7 +808,10 @@ export const LoadedEditor = memo(function LoadedEditor({
               minSize={editorLayout.timelineMinSize}
               maxSize={editorLayout.timelineMaxSize}
             >
-              <InteractionLockRegion locked={isMaskEditingActive} className="h-full">
+              <InteractionLockRegion
+                locked={isMaskEditingActive}
+                className="h-full rounded-lg border border-panel-outline/60 overflow-hidden"
+              >
                 <ErrorBoundary level="feature">
                   <div className="h-full flex overflow-hidden">
                     <div className="min-w-0 flex-1">
@@ -798,11 +833,21 @@ export const LoadedEditor = memo(function LoadedEditor({
 
         {/* Right Sidebar - Properties (full column mode) */}
         {propertiesFullColumn && !hidesDefaultSidebars && (
-          <InteractionLockRegion locked={isMaskEditingActive}>
-            <ErrorBoundary level="feature">
-              <PropertiesSidebar />
-            </ErrorBoundary>
-          </InteractionLockRegion>
+          <div className="relative shrink-0 flex">
+            <SidebarResizeHandle
+              side="right"
+              className={isMaskEditingActive ? 'pointer-events-none opacity-60' : undefined}
+            />
+            <InteractionLockRegion
+              locked={isMaskEditingActive}
+              className={`rounded-lg overflow-hidden shrink-0${rightSidebarOpen ? ' border border-panel-outline/60' : ''}`}
+            >
+              <ErrorBoundary level="feature">
+                <PropertiesSidebar />
+              </ErrorBoundary>
+            </InteractionLockRegion>
+            <PropertiesSidebarReveal />
+          </div>
         )}
       </div>
 

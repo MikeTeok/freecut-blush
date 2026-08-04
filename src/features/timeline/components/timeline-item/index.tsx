@@ -1009,7 +1009,12 @@ export const TimelineItem = memo(function TimelineItem({
                   <div
                     ref={videoControlsRef}
                     className="absolute inset-x-0 bottom-0 pointer-events-none z-10"
-                    style={{ top: EDITOR_LAYOUT_CSS_VALUES.timelineClipLabelRowHeight }}
+                    style={{
+                      top:
+                        item.type === 'video'
+                          ? 0
+                          : EDITOR_LAYOUT_CSS_VALUES.timelineClipLabelRowHeight,
+                    }}
                   >
                     <svg
                       className="absolute inset-0 h-full w-full"
@@ -1101,7 +1106,10 @@ export const TimelineItem = memo(function TimelineItem({
           {!useCompactClipShell && isVisualFadeItem && (
             <div
               className="absolute inset-x-0 bottom-0 z-30 pointer-events-none"
-              style={{ top: EDITOR_LAYOUT_CSS_VALUES.timelineClipLabelRowHeight }}
+              style={{
+                top:
+                  item.type === 'video' ? 0 : EDITOR_LAYOUT_CSS_VALUES.timelineClipLabelRowHeight,
+              }}
             >
               <VideoFadeHandles
                 trackLocked={trackLocked}

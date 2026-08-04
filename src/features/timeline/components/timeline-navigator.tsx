@@ -528,7 +528,7 @@ export function TimelineNavigator({ actualDuration, scrollContainerRef }: Timeli
   ])
 
   return (
-    <div className="h-5 border-t border-border bg-background/80 px-2 py-1">
+    <div className="h-5 border-t border-border px-2 py-1">
       <div
         ref={trackRef}
         className="relative h-full rounded-sm bg-secondary/70"

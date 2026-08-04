@@ -20,6 +20,8 @@ export interface EditorState {
   clipInspectorTab: ClipInspectorTab
   sidebarWidth: number
   rightSidebarWidth: number
+  /** True while a sidebar resize drag is in progress (snaps width animation). */
+  sidebarResizeActive: boolean
   timelineHeight: number
   sourcePreviewMediaId: string | null
   mediaSkimPreviewMediaId: string | null
@@ -52,6 +54,7 @@ export interface EditorActions {
   setClipInspectorTab: (tab: ClipInspectorTab) => void
   setSidebarWidth: (width: number) => void
   setRightSidebarWidth: (width: number) => void
+  setSidebarResizeActive: (active: boolean) => void
   syncSidebarLayout: (layout: {
     leftSidebarDefaultWidth: number
     leftSidebarMinWidth: number
