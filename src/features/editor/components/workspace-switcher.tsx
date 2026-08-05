@@ -1,4 +1,4 @@
-import { memo, useCallback, useLayoutEffect, useRef, useState } from 'react'
+import { memo, startTransition, useCallback, useLayoutEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Palette, Pencil, Sparkles } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
@@ -55,7 +55,9 @@ export const WorkspaceSwitcher = memo(function WorkspaceSwitcher() {
   const handleSelect = useCallback(
     (item: (typeof WORKSPACE_ITEMS)[number], e: React.MouseEvent<HTMLButtonElement>) => {
       if (item.id === workspace) return
-      setWorkspace(item.id)
+      startTransition(() => {
+        setWorkspace(item.id)
+      })
       setBump(item.id)
       setTimeout(() => setBump(null), 420)
 

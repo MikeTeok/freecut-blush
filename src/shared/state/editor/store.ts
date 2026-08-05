@@ -187,15 +187,17 @@ export const useEditorStore = create<EditorState & EditorActions>((set) => ({
       playback.pause()
       playback.setPreviewFrame(null)
 
-      // Remember the outgoing workspace's layout so the user's tweaks
-      // survive a round trip; the incoming workspace restores its own
-      // saved layout (or the preset on first visit).
-      saveEditorWorkspaceLayout(state.workspace, getEditorWorkspaceLayoutSnapshot(state))
-      try {
-        localStorage.setItem(WORKSPACE_STORAGE_KEY, workspace)
-      } catch {
-        /* noop */
-      }
+      // Defer localStorage writes so they don't block the click path.
+      // startTransition defers the re-render; the microtask defers I/O.
+      const outgoingLayout = getEditorWorkspaceLayoutSnapshot(state)
+      queueMicrotask(() => {
+        saveEditorWorkspaceLayout(state.workspace, outgoingLayout)
+        try {
+          localStorage.setItem(WORKSPACE_STORAGE_KEY, workspace)
+        } catch {
+          /* noop */
+        }
+      })
 
       return { workspace, ...loadEditorWorkspaceLayout(workspace) }
     }),
