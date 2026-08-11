@@ -114,6 +114,7 @@ interface UsePreviewRendererControllerParams {
   preserveRendererAcrossOverlayRouting: boolean
   domTextScrubOverlayEnabled: boolean
   items: TimelineItem[]
+  useProxy: boolean
   playerSize: { width: number; height: number }
   playerRenderSize: { width: number; height: number }
   renderSize: { width: number; height: number }
@@ -193,6 +194,7 @@ export function usePreviewRendererController({
   preserveRendererAcrossOverlayRouting,
   domTextScrubOverlayEnabled,
   items,
+  useProxy,
   playerSize,
   playerRenderSize,
   renderSize,
@@ -276,6 +278,9 @@ export function usePreviewRendererController({
   const liveScopeCaptureInitPromiseRef = useRef<Promise<PreviewCompositionRenderer | null> | null>(
     null,
   )
+  const scrubInitGenerationRef = useRef(0)
+  const bgTransitionInitGenerationRef = useRef(0)
+  const liveScopeCaptureInitGenerationRef = useRef(0)
   const liveScopeCaptureCanvasRef = useRef<OffscreenCanvas | null>(null)
   const liveScopeCaptureCtxRef = useRef<OffscreenCanvasRenderingContext2D | null>(null)
   const liveScopeCaptureStructureKeyRef = useRef<string | null>(null)
@@ -289,7 +294,7 @@ export function usePreviewRendererController({
   useLayoutEffect(() => {
     const canvas = scrubCanvasRef.current
     if (!canvas) return
-    const backingSize = getPreviewDisplayCanvasBackingSize(playerSize, playerRenderSize)
+    const backingSize = getPreviewDisplayCanvasBackingSize(playerSize, renderSize)
     if (canvas.width !== backingSize.width) canvas.width = backingSize.width
     if (canvas.height !== backingSize.height) canvas.height = backingSize.height
     if (!showFastScrubOverlayRef.current && !showPlaybackTransitionOverlayRef.current) return
@@ -326,7 +331,7 @@ export function usePreviewRendererController({
     drawSourceToPreviewDisplayCanvas(ctx, canvas, offscreen)
     setDisplayedFrame(renderedFrame)
   }, [
-    playerRenderSize,
+    renderSize,
     playerSize,
     committedPreviewSnapshotRef,
     scrubCanvasRef,
@@ -342,6 +347,9 @@ export function usePreviewRendererController({
     // awaiting the previous renderer. The replacement pump must never tag or
     // present pixels through that stale generation's shared refs.
     scrubRenderGenerationRef.current += 1
+    scrubInitGenerationRef.current += 1
+    bgTransitionInitGenerationRef.current += 1
+    liveScopeCaptureInitGenerationRef.current += 1
     resetPlaybackStartReadiness()
     scrubInitPromiseRef.current = null
     scrubPreloadPromiseRef.current = null
@@ -443,6 +451,7 @@ export function usePreviewRendererController({
       liveScopeCaptureRendererRef.current &&
       liveScopeCaptureStructureKeyRef.current !== fastScrubRendererStructureKey
     ) {
+      liveScopeCaptureInitGenerationRef.current += 1
       try {
         liveScopeCaptureRendererRef.current.dispose()
       } catch {
@@ -456,7 +465,9 @@ export function usePreviewRendererController({
     if (liveScopeCaptureRendererRef.current) return liveScopeCaptureRendererRef.current
     if (liveScopeCaptureInitPromiseRef.current) return liveScopeCaptureInitPromiseRef.current
 
-    liveScopeCaptureInitPromiseRef.current = (async () => {
+    const initGeneration = liveScopeCaptureInitGenerationRef.current
+    let initPromise!: Promise<PreviewCompositionRenderer | null>
+    initPromise = (async () => {
       try {
         const offscreen = new OffscreenCanvas(renderSize.width, renderSize.height)
         const offscreenCtx = offscreen.getContext('2d')
@@ -468,7 +479,7 @@ export function usePreviewRendererController({
           offscreenCtx,
           {
             mode: 'preview',
-            useProxyMedia: true,
+            useProxyMedia: useProxy,
             getPreviewTransformOverride,
             getPreviewEffectsOverride,
             getPreviewCornerPinOverride,
@@ -478,6 +489,10 @@ export function usePreviewRendererController({
             getLiveKeyframes,
           },
         )
+        if (liveScopeCaptureInitGenerationRef.current !== initGeneration) {
+          renderer.dispose()
+          return null
+        }
         liveScopeCaptureCanvasRef.current = offscreen
         liveScopeCaptureCtxRef.current = offscreenCtx
         liveScopeCaptureRendererRef.current = renderer
@@ -488,17 +503,22 @@ export function usePreviewRendererController({
         return renderer
       } catch (error) {
         logger.warn('Failed to initialize live scope capture renderer:', error)
-        liveScopeCaptureRendererRef.current = null
-        liveScopeCaptureCanvasRef.current = null
-        liveScopeCaptureCtxRef.current = null
-        liveScopeCaptureStructureKeyRef.current = null
+        if (liveScopeCaptureInitGenerationRef.current === initGeneration) {
+          liveScopeCaptureRendererRef.current = null
+          liveScopeCaptureCanvasRef.current = null
+          liveScopeCaptureCtxRef.current = null
+          liveScopeCaptureStructureKeyRef.current = null
+        }
         return null
       } finally {
-        liveScopeCaptureInitPromiseRef.current = null
+        if (liveScopeCaptureInitPromiseRef.current === initPromise) {
+          liveScopeCaptureInitPromiseRef.current = null
+        }
       }
     })()
+    liveScopeCaptureInitPromiseRef.current = initPromise
 
-    return liveScopeCaptureInitPromiseRef.current
+    return initPromise
   }, [
     fastScrubInputProps,
     fastScrubRendererStructureKey,
@@ -512,6 +532,7 @@ export function usePreviewRendererController({
     isResolving,
     renderSize.height,
     renderSize.width,
+    useProxy,
   ])
 
   const ensureBgTransitionRenderer =
@@ -527,7 +548,9 @@ export function usePreviewRendererController({
       if (bgTransitionRendererRef.current) return bgTransitionRendererRef.current
       if (bgTransitionInitPromiseRef.current) return bgTransitionInitPromiseRef.current
 
-      bgTransitionInitPromiseRef.current = (async () => {
+      const initGeneration = bgTransitionInitGenerationRef.current
+      let initPromise!: Promise<PreviewCompositionRenderer | null>
+      initPromise = (async () => {
         try {
           const canvas = new OffscreenCanvas(renderSize.width, renderSize.height)
           const ctx = canvas.getContext('2d')
@@ -535,7 +558,7 @@ export function usePreviewRendererController({
           const { createCompositionRenderer } = await importCompositionRenderer()
           const renderer = await createCompositionRenderer(fastScrubInputProps, canvas, ctx, {
             mode: 'preview',
-            useProxyMedia: true,
+            useProxyMedia: useProxy,
             getPreviewTransformOverride,
             getPreviewEffectsOverride,
             getPreviewCornerPinOverride,
@@ -545,6 +568,10 @@ export function usePreviewRendererController({
             getLiveKeyframes,
             renderText: !domTextScrubOverlayEnabled,
           })
+          if (bgTransitionInitGenerationRef.current !== initGeneration) {
+            renderer.dispose()
+            return null
+          }
           if ('warmGpuPipeline' in renderer) {
             void renderer.warmGpuPipeline()
           }
@@ -554,10 +581,13 @@ export function usePreviewRendererController({
         } catch {
           return null
         } finally {
-          bgTransitionInitPromiseRef.current = null
+          if (bgTransitionInitPromiseRef.current === initPromise) {
+            bgTransitionInitPromiseRef.current = null
+          }
         }
       })()
-      return bgTransitionInitPromiseRef.current
+      bgTransitionInitPromiseRef.current = initPromise
+      return initPromise
     }, [
       bgTransitionInitPromiseRef,
       bgTransitionRendererRef,
@@ -576,6 +606,7 @@ export function usePreviewRendererController({
       isResolving,
       renderSize.height,
       renderSize.width,
+      useProxy,
     ])
 
   const ensureFastScrubRenderer =
@@ -603,7 +634,9 @@ export function usePreviewRendererController({
         lookaheadOrigin: null,
         lookaheadReadyMs: null,
       })
-      scrubInitPromiseRef.current = (async () => {
+      const initGeneration = scrubInitGenerationRef.current
+      let initPromise!: Promise<PreviewCompositionRenderer | null>
+      initPromise = (async () => {
         try {
           const offscreen = new OffscreenCanvas(renderSize.width, renderSize.height)
           const offscreenCtx = offscreen.getContext('2d')
@@ -616,7 +649,7 @@ export function usePreviewRendererController({
             offscreenCtx,
             {
               mode: 'preview',
-              useProxyMedia: true,
+              useProxyMedia: useProxy,
               getPreviewTransformOverride,
               getPreviewEffectsOverride,
               getPreviewCornerPinOverride,
@@ -627,6 +660,10 @@ export function usePreviewRendererController({
               renderText: !domTextScrubOverlayEnabled,
             },
           )
+          if (scrubInitGenerationRef.current !== initGeneration) {
+            renderer.dispose()
+            return null
+          }
           scrubOffscreenCanvasRef.current = offscreen
           scrubOffscreenCtxRef.current = offscreenCtx
           scrubOffscreenRenderedFrameRef.current = null
@@ -696,20 +733,25 @@ export function usePreviewRendererController({
           ])
           return renderer
         } catch (error) {
-          markPlaybackStartReadiness({ rendererInitFailedMs: performance.now() })
           logger.warn('Failed to initialize renderer, falling back to Player seeks:', error)
-          scrubRendererRef.current = null
-          setActivePreviewScrubbingCache(null)
-          scrubOffscreenCanvasRef.current = null
-          scrubOffscreenCtxRef.current = null
-          scrubOffscreenRenderedFrameRef.current = null
+          if (scrubInitGenerationRef.current === initGeneration) {
+            markPlaybackStartReadiness({ rendererInitFailedMs: performance.now() })
+            scrubRendererRef.current = null
+            setActivePreviewScrubbingCache(null)
+            scrubOffscreenCanvasRef.current = null
+            scrubOffscreenCtxRef.current = null
+            scrubOffscreenRenderedFrameRef.current = null
+          }
           return null
         } finally {
-          scrubInitPromiseRef.current = null
+          if (scrubInitPromiseRef.current === initPromise) {
+            scrubInitPromiseRef.current = null
+          }
         }
       })()
+      scrubInitPromiseRef.current = initPromise
 
-      return scrubInitPromiseRef.current
+      return initPromise
     }, [
       disposeFastScrubRenderer,
       domTextScrubOverlayEnabled,
@@ -736,6 +778,7 @@ export function usePreviewRendererController({
       scrubRendererRef,
       scrubRendererStructureKeyRef,
       scrubRequestedFrameRef,
+      useProxy,
     ])
   ensureFastScrubRendererRef.current = ensureFastScrubRenderer
 
@@ -1786,7 +1829,9 @@ export function usePreviewRendererController({
       // ensureFastScrubRenderer() is already in flight before this idle
       // callback fires, and the pool must still warm.
       warmDecoderPrewarmWorkerPool()
-      warmScrubProxyFallback()
+      if (useProxy) {
+        warmScrubProxyFallback()
+      }
       if (scrubRendererRef.current || scrubInitPromiseRef.current) return
       void ensureFastScrubRenderer()
     }
@@ -1815,7 +1860,7 @@ export function usePreviewRendererController({
         clearTimeout(timeoutId)
       }
     }
-  }, [ensureFastScrubRenderer, isResolving, scrubInitPromiseRef, scrubRendererRef])
+  }, [ensureFastScrubRenderer, isResolving, scrubInitPromiseRef, scrubRendererRef, useProxy])
 
   useEffect(() => {
     return () => {

@@ -388,7 +388,7 @@ export const PreviewStage = memo(function PreviewStage({
   const splitPosition = Math.max(0.05, Math.min(0.95, colorGradeSplitPosition))
   const splitPercent = splitPosition * 100
   const splitClipPath = `inset(0 ${100 - splitPercent}% 0 0)`
-  const displayCanvasStyle = getPreviewDisplayCanvasStyle(playerSize, playerRenderSize)
+  const displayCanvasStyle = getPreviewDisplayCanvasStyle(playerSize, overlayRenderSize)
 
   const updateSplitPositionFromPointer = useCallback(
     (event: { clientX: number }) => {
