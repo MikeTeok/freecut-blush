@@ -2756,7 +2756,9 @@ export const KeyframeGraphPanel = memo(function KeyframeGraphPanel({
         baseTransform: vectorBaseTransform,
         canvas,
         getItem: (itemId) => allItemsById[itemId],
-        getKeyframes: (itemId) => allKeyframesByItemId[itemId],
+        // Read live state so consecutive vector payloads (x then y) for the same
+        // keyframe see each other's keyframes instead of the pre-paste snapshot.
+        getKeyframes: (itemId) => useKeyframesStore.getState().keyframesByItemId[itemId],
       })
       if (insertedRef) insertedVectorRefs.push(insertedRef)
     }
@@ -2798,7 +2800,6 @@ export const KeyframeGraphPanel = memo(function KeyframeGraphPanel({
   }, [
     availableProperties,
     allItemsById,
-    allKeyframesByItemId,
     canvas,
     clearKeyframeClipboard,
     clearKeyframeSelection,

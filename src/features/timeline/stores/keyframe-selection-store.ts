@@ -5,7 +5,7 @@ import type {
   AnimatableProperty,
   Keyframe,
   VectorAnimatableProperty,
-  ItemKeyframes,
+  VectorKeyframe,
 } from '@/types/keyframe'
 import { useKeyframesStore } from './keyframes-store'
 import { removeKeyframes, removeVectorKeyframe } from './actions/keyframe-actions'
@@ -80,28 +80,14 @@ function getStoredVectorId(keyframeId: string, axis: 'x' | 'y'): string {
   return axis === 'y' && keyframeId.endsWith(':y') ? keyframeId.slice(0, -2) : keyframeId
 }
 
-function resolveSelectedKeyframe(
-  itemKeyframes: ItemKeyframes,
-  ref: KeyframeRef,
-): Keyframe | undefined {
-  const scalarKeyframe = itemKeyframes.properties
-    .find((property) => property.property === ref.property)
-    ?.keyframes.find((keyframe) => keyframe.id === ref.keyframeId)
-  if (scalarKeyframe) return scalarKeyframe
-
-  const vector = getVectorSelectionMapping(ref.property)
-  if (!vector) return undefined
-  const vectorKeyframe = itemKeyframes.vectorProperties
-    ?.find((candidate) => candidate.property === vector.property)
-    ?.keyframes.find((candidate) => candidate.id === getStoredVectorId(ref.keyframeId, vector.axis))
-  if (!vectorKeyframe) return undefined
-  return {
-    id: ref.keyframeId,
-    frame: vectorKeyframe.frame,
-    value: vectorKeyframe.value[vector.axis],
-    easing: vectorKeyframe.easing,
-    easingConfig: vectorKeyframe.easingConfig,
-  }
+/** Scalar proxy property for each axis of a vector transform lane. */
+const VECTOR_AXIS_PROXY_PROPERTY: Record<
+  VectorAnimatableProperty,
+  { x: AnimatableProperty; y: AnimatableProperty }
+> = {
+  position: { x: 'x', y: 'y' },
+  scale: { x: 'width', y: 'height' },
+  anchor: { x: 'anchorX', y: 'anchorY' },
 }
 
 export const useKeyframeSelectionStore = create<
@@ -243,41 +229,99 @@ export const useKeyframeSelectionStore = create<
 
     const keyframesState = useKeyframesStore.getState()
 
-    // Gather full keyframe data and find minimum frame
-    const keyframeData: Array<{
-      ref: KeyframeRef
-      keyframe: Keyframe
-    }> = []
+    const scalarEntries: Array<{ ref: KeyframeRef; keyframe: Keyframe }> = []
+    // Vector keyframes are coupled (both axes share one stored keyframe). Copy
+    // the full {x, y} pair regardless of which axis diamond was selected so
+    // pasting restores both axes instead of only the picked one.
+    const vectorEntries = new Map<
+      string,
+      {
+        itemId: string
+        proxyX: AnimatableProperty
+        proxyY: AnimatableProperty
+        keyframe: VectorKeyframe
+      }
+    >()
     let minFrame = Infinity
 
     for (const ref of selectedKeyframes) {
       const itemKeyframes = keyframesState.getKeyframesForItem(ref.itemId)
       if (!itemKeyframes) continue
 
-      const keyframe = resolveSelectedKeyframe(itemKeyframes, ref)
-      if (!keyframe) continue
+      const scalarKeyframe = itemKeyframes.properties
+        .find((property) => property.property === ref.property)
+        ?.keyframes.find((keyframe) => keyframe.id === ref.keyframeId)
+      if (scalarKeyframe) {
+        scalarEntries.push({ ref, keyframe: scalarKeyframe })
+        minFrame = Math.min(minFrame, scalarKeyframe.frame)
+        continue
+      }
 
-      keyframeData.push({ ref, keyframe })
-      minFrame = Math.min(minFrame, keyframe.frame)
+      const vector = getVectorSelectionMapping(ref.property)
+      if (!vector) continue
+      const vectorKeyframe = itemKeyframes.vectorProperties
+        ?.find((candidate) => candidate.property === vector.property)
+        ?.keyframes.find(
+          (candidate) => candidate.id === getStoredVectorId(ref.keyframeId, vector.axis),
+        )
+      if (!vectorKeyframe) continue
+
+      const key = `${ref.itemId}:${vector.property}:${vectorKeyframe.id}`
+      if (!vectorEntries.has(key)) {
+        vectorEntries.set(key, {
+          itemId: ref.itemId,
+          proxyX: VECTOR_AXIS_PROXY_PROPERTY[vector.property].x,
+          proxyY: VECTOR_AXIS_PROXY_PROPERTY[vector.property].y,
+          keyframe: vectorKeyframe,
+        })
+      }
+      minFrame = Math.min(minFrame, vectorKeyframe.frame)
     }
 
-    if (keyframeData.length === 0) return
+    if (scalarEntries.length === 0 && vectorEntries.size === 0) return
 
-    // Create clipboard with normalized frames (relative to first keyframe)
-    const clipboard: KeyframeClipboard = {
-      keyframes: keyframeData.map(({ ref, keyframe }) => ({
+    const clipboardKeyframes: KeyframeClipboard['keyframes'] = scalarEntries.map(
+      ({ ref, keyframe }) => ({
         property: ref.property,
         frame: keyframe.frame - minFrame, // Normalize to 0-based
         value: keyframe.value,
         easing: keyframe.easing,
         easingConfig: keyframe.easingConfig,
-      })),
-      sourceItemId: selectedKeyframes[0]?.itemId,
-      originFrame: minFrame,
-      sourceRefs: keyframeData.map(({ ref }) => ({ ...ref })),
+      }),
+    )
+    const sourceRefs: KeyframeRef[] = scalarEntries.map(({ ref }) => ({ ...ref }))
+    for (const { itemId, proxyX, proxyY, keyframe } of vectorEntries.values()) {
+      clipboardKeyframes.push(
+        {
+          property: proxyX,
+          frame: keyframe.frame - minFrame,
+          value: keyframe.value.x,
+          easing: keyframe.easing,
+          easingConfig: keyframe.easingConfig,
+        },
+        {
+          property: proxyY,
+          frame: keyframe.frame - minFrame,
+          value: keyframe.value.y,
+          easing: keyframe.easing,
+          easingConfig: keyframe.easingConfig,
+        },
+      )
+      sourceRefs.push(
+        { itemId, property: proxyX, keyframeId: keyframe.id },
+        { itemId, property: proxyY, keyframeId: `${keyframe.id}:y` },
+      )
     }
 
-    set({ clipboard, isCut: false })
+    set({
+      clipboard: {
+        keyframes: clipboardKeyframes,
+        sourceItemId: selectedKeyframes[0]?.itemId,
+        originFrame: minFrame,
+        sourceRefs,
+      },
+      isCut: false,
+    })
   },
 
   // Cut selected keyframes (copy + mark for deletion)

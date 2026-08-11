@@ -1,12 +1,9 @@
 import type { ReactNode } from 'react'
-import { act, render, screen } from '@testing-library/react'
+import { act, fireEvent, render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vite-plus/test'
 import type { ShapeItem } from '@/types/timeline'
 import { useGizmoStore } from '@/features/editor/deps/preview'
-import {
-  useItemsStore,
-  useKeyframesStore,
-} from '@/features/editor/deps/timeline-store'
+import { useItemsStore, useKeyframesStore } from '@/features/editor/deps/timeline-store'
 import { LayoutSection } from './layout-section'
 
 const layoutTestState = vi.hoisted(() => ({
@@ -14,19 +11,32 @@ const layoutTestState = vi.hoisted(() => ({
   keyframeRenderCounts: { x: 0, y: 0 } as Record<string, number>,
 }))
 
+const timelineStoreMocks = vi.hoisted(() => ({
+  applyAutoKeyframeOperations: vi.fn(),
+  updateItemsTransformMap: vi.fn(),
+}))
+
+vi.mock('@/features/editor/deps/timeline-store', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/features/editor/deps/timeline-store')>()
+  return {
+    ...actual,
+    useTimelineStore: (selector: (state: unknown) => unknown) =>
+      selector({
+        applyAutoKeyframeOperations: timelineStoreMocks.applyAutoKeyframeOperations,
+        updateItemsTransformMap: timelineStoreMocks.updateItemsTransformMap,
+      }),
+  }
+})
+
 vi.mock('../components', () => ({
   PropertySection: ({ children }: { children: ReactNode }) => {
     layoutTestState.sectionRenderCount += 1
     return <section>{children}</section>
   },
   PropertyRow: ({ children }: { children: ReactNode }) => <div>{children}</div>,
-  NumberInput: ({
-    label,
-    value,
-  }: {
-    label?: string
-    value: number | 'mixed'
-  }) => <input readOnly aria-label={`number-${label}`} value={value} />,
+  NumberInput: ({ label, value }: { label?: string; value: number | 'mixed' }) => (
+    <input readOnly aria-label={`number-${label}`} value={value} />
+  ),
   SliderInput: ({ value }: { value: number | 'mixed' }) => (
     <input readOnly aria-label="rotation" value={value} />
   ),
@@ -82,6 +92,8 @@ describe('LayoutSection live gizmo position', () => {
   beforeEach(() => {
     layoutTestState.sectionRenderCount = 0
     layoutTestState.keyframeRenderCounts = { x: 0, y: 0 }
+    timelineStoreMocks.applyAutoKeyframeOperations.mockReset()
+    timelineStoreMocks.updateItemsTransformMap.mockReset()
     useItemsStore.getState().setItems([SHAPE])
     useKeyframesStore.setState({ keyframesByItemId: {} })
     useGizmoStore.setState({
@@ -240,5 +252,75 @@ describe('LayoutSection live gizmo position', () => {
 
     expect(screen.getByRole('textbox', { name: 'number-X' })).toHaveValue('510')
     expect(screen.getByRole('textbox', { name: 'number-Y' })).toHaveValue('340')
+  })
+
+  it('resets scale through a coupled vector keyframe when a scale lane exists', () => {
+    useKeyframesStore.setState({
+      keyframesByItemId: {
+        [SHAPE.id]: {
+          itemId: SHAPE.id,
+          animationVersion: 2,
+          properties: [],
+          vectorProperties: [
+            {
+              property: 'scale',
+              keyframes: [{ id: 'scale-1', frame: 0, value: { x: 200, y: 200 }, easing: 'linear' }],
+            },
+          ],
+        },
+      },
+    })
+
+    renderLayout()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Reset to original size' }))
+
+    // Base transform is 400x220; at 200% the resolved size is 800x440, so the
+    // square reset target is 440, i.e. scale x=110%, y=200%.
+    expect(timelineStoreMocks.applyAutoKeyframeOperations).toHaveBeenCalledWith([
+      {
+        type: 'vector-update',
+        itemId: SHAPE.id,
+        property: 'scale',
+        keyframeId: 'scale-1',
+        updates: { value: { x: expect.closeTo(110, 4), y: 200 } },
+      },
+    ])
+    expect(timelineStoreMocks.updateItemsTransformMap).not.toHaveBeenCalled()
+  })
+
+  it('resets position through a coupled vector keyframe when a position lane exists', () => {
+    useKeyframesStore.setState({
+      keyframesByItemId: {
+        [SHAPE.id]: {
+          itemId: SHAPE.id,
+          animationVersion: 2,
+          properties: [],
+          vectorProperties: [
+            {
+              property: 'position',
+              keyframes: [
+                { id: 'position-1', frame: 0, value: { x: 240, y: 160 }, easing: 'linear' },
+              ],
+            },
+          ],
+        },
+      },
+    })
+
+    renderLayout()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Reset to center' }))
+
+    expect(timelineStoreMocks.applyAutoKeyframeOperations).toHaveBeenCalledWith([
+      {
+        type: 'vector-update',
+        itemId: SHAPE.id,
+        property: 'position',
+        keyframeId: 'position-1',
+        updates: { value: { x: 0, y: 0 } },
+      },
+    ])
+    expect(timelineStoreMocks.updateItemsTransformMap).not.toHaveBeenCalled()
   })
 })

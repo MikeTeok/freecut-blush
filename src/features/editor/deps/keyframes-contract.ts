@@ -17,6 +17,7 @@ export {
 export { countTrimmedKeyframes } from '@/features/keyframes/utils/trimmed-keyframes'
 export {
   getAutoKeyframeOperation,
+  getVectorAutoKeyframeOperation,
   buildPathVertexKeyframeAllOperations,
   type AutoKeyframeOperation,
 } from '@/features/keyframes/utils/auto-keyframe'

@@ -91,7 +91,7 @@ describe('useKeyframeSelectionStore', () => {
     expect(useKeyframesStore.getState().getAllKeyframesForProperty('item-1', 'opacity')).toEqual([])
   })
 
-  it('copies and cuts a selected vector axis without creating scalar lanes', () => {
+  it('copies both axes of a selected vector keyframe without creating scalar lanes', () => {
     useKeyframesStore.getState().setKeyframes([
       {
         itemId: 'item-vector',
@@ -112,6 +112,8 @@ describe('useKeyframeSelectionStore', () => {
         ],
       },
     ])
+    // Only the y-axis diamond was picked — the x value must still be copied so
+    // pasting restores the full coupled keyframe instead of losing an axis.
     useKeyframeSelectionStore.getState().selectKeyframe({
       itemId: 'item-vector',
       property: 'y',
@@ -120,6 +122,13 @@ describe('useKeyframeSelectionStore', () => {
 
     useKeyframeSelectionStore.getState().copySelectedKeyframes()
     expect(useKeyframeSelectionStore.getState().clipboard?.keyframes).toEqual([
+      {
+        property: 'x',
+        frame: 0,
+        value: 40,
+        easing: 'ease-in-out',
+        easingConfig: undefined,
+      },
       {
         property: 'y',
         frame: 0,
@@ -134,5 +143,43 @@ describe('useKeyframeSelectionStore', () => {
       useKeyframesStore.getState().getVectorKeyframesForProperty('item-vector', 'position'),
     ).toEqual([])
     expect(useKeyframesStore.getState().getAllKeyframesForProperty('item-vector', 'y')).toEqual([])
+  })
+
+  it('does not duplicate vector entries when both axes are already selected', () => {
+    useKeyframesStore.getState().setKeyframes([
+      {
+        itemId: 'item-vector',
+        animationVersion: 2,
+        properties: [],
+        vectorProperties: [
+          {
+            property: 'scale',
+            keyframes: [
+              {
+                id: 'scale-a',
+                frame: 3,
+                value: { x: 150, y: 80 },
+                easing: 'linear',
+              },
+            ],
+          },
+        ],
+      },
+    ])
+    useKeyframeSelectionStore.getState().selectKeyframes([
+      { itemId: 'item-vector', property: 'width', keyframeId: 'scale-a' },
+      { itemId: 'item-vector', property: 'height', keyframeId: 'scale-a:y' },
+    ])
+
+    useKeyframeSelectionStore.getState().copySelectedKeyframes()
+
+    expect(useKeyframeSelectionStore.getState().clipboard?.keyframes).toEqual([
+      { property: 'width', frame: 0, value: 150, easing: 'linear', easingConfig: undefined },
+      { property: 'height', frame: 0, value: 80, easing: 'linear', easingConfig: undefined },
+    ])
+    expect(useKeyframeSelectionStore.getState().clipboard?.sourceRefs).toEqual([
+      { itemId: 'item-vector', property: 'width', keyframeId: 'scale-a' },
+      { itemId: 'item-vector', property: 'height', keyframeId: 'scale-a:y' },
+    ])
   })
 })

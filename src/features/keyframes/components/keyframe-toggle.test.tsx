@@ -12,6 +12,8 @@ import { KeyframeToggle } from './keyframe-toggle'
 const mocks = vi.hoisted(() => ({
   addKeyframes: vi.fn(),
   removeKeyframes: vi.fn(),
+  upsertVectorKeyframe: vi.fn(),
+  removeVectorKeyframe: vi.fn(),
 }))
 
 vi.mock('react-i18next', () => ({
@@ -30,11 +32,15 @@ vi.mock('@/features/keyframes/deps/timeline', async (importOriginal) => {
       selector: (state: {
         addKeyframes: typeof mocks.addKeyframes
         removeKeyframes: typeof mocks.removeKeyframes
+        upsertVectorKeyframe: typeof mocks.upsertVectorKeyframe
+        removeVectorKeyframe: typeof mocks.removeVectorKeyframe
       }) => unknown,
     ) =>
       selector({
         addKeyframes: mocks.addKeyframes,
         removeKeyframes: mocks.removeKeyframes,
+        upsertVectorKeyframe: mocks.upsertVectorKeyframe,
+        removeVectorKeyframe: mocks.removeVectorKeyframe,
       }),
   }
 })
@@ -82,6 +88,8 @@ describe('KeyframeToggle multi-selection', () => {
   beforeEach(() => {
     mocks.addKeyframes.mockReset()
     mocks.removeKeyframes.mockReset()
+    mocks.upsertVectorKeyframe.mockReset()
+    mocks.removeVectorKeyframe.mockReset()
     useItemsStore.getState().setItems([VIDEO_ITEM, COMPOSITION_ITEM])
     useKeyframesStore.setState({ keyframesByItemId: {} })
     useTransitionsStore.setState({ transitions: [] })
@@ -164,5 +172,126 @@ describe('KeyframeToggle multi-selection', () => {
       { itemId: COMPOSITION_ITEM.id, property: 'cropLeft', keyframeId: 'composition-key' },
     ])
     expect(mocks.addKeyframes).not.toHaveBeenCalled()
+  })
+
+  describe('coupled vector lanes', () => {
+    const VECTOR_CONFIG = {
+      property: 'scale' as const,
+      axis: 'x' as const,
+      getValueByItemId: () => ({ x: 120, y: 60 }),
+    }
+
+    it('adds a vector keyframe instead of an invisible scalar one when a lane exists', () => {
+      useKeyframesStore.setState({
+        keyframesByItemId: {
+          [VIDEO_ITEM.id]: {
+            itemId: VIDEO_ITEM.id,
+            animationVersion: 2,
+            properties: [],
+            vectorProperties: [
+              {
+                property: 'scale',
+                keyframes: [
+                  { id: 'scale-1', frame: 5, value: { x: 150, y: 80 }, easing: 'linear' },
+                ],
+              },
+            ],
+          },
+        },
+      })
+      render(
+        <TooltipProvider>
+          <KeyframeToggle
+            itemIds={[VIDEO_ITEM.id]}
+            property="width"
+            currentValue={200}
+            vector={VECTOR_CONFIG}
+          />
+        </TooltipProvider>,
+      )
+
+      fireEvent.click(screen.getByRole('button'))
+
+      expect(mocks.upsertVectorKeyframe).toHaveBeenCalledWith('video-1', 'scale', {
+        frame: 10,
+        value: { x: 120, y: 60 },
+        easing: 'linear',
+      })
+      expect(mocks.addKeyframes).not.toHaveBeenCalled()
+    })
+
+    it('removes the coupled vector keyframe at the current frame', () => {
+      useKeyframesStore.setState({
+        keyframesByItemId: {
+          [VIDEO_ITEM.id]: {
+            itemId: VIDEO_ITEM.id,
+            animationVersion: 2,
+            properties: [],
+            vectorProperties: [
+              {
+                property: 'scale',
+                keyframes: [
+                  { id: 'scale-1', frame: 10, value: { x: 150, y: 80 }, easing: 'linear' },
+                ],
+              },
+            ],
+          },
+        },
+      })
+      render(
+        <TooltipProvider>
+          <KeyframeToggle
+            itemIds={[VIDEO_ITEM.id]}
+            property="width"
+            currentValue={200}
+            vector={VECTOR_CONFIG}
+          />
+        </TooltipProvider>,
+      )
+
+      fireEvent.click(screen.getByRole('button'))
+
+      expect(mocks.removeVectorKeyframe).toHaveBeenCalledWith('video-1', 'scale', 'scale-1')
+      expect(mocks.removeKeyframes).not.toHaveBeenCalled()
+      expect(mocks.addKeyframes).not.toHaveBeenCalled()
+    })
+
+    it('stays on the scalar path when the vector lane is explicitly separated', () => {
+      useKeyframesStore.setState({
+        keyframesByItemId: {
+          [VIDEO_ITEM.id]: {
+            itemId: VIDEO_ITEM.id,
+            animationVersion: 2,
+            properties: [],
+            separatedVectorProperties: ['scale'],
+            vectorProperties: [
+              {
+                property: 'scale',
+                keyframes: [
+                  { id: 'scale-1', frame: 5, value: { x: 150, y: 80 }, easing: 'linear' },
+                ],
+              },
+            ],
+          },
+        },
+      })
+      render(
+        <TooltipProvider>
+          <KeyframeToggle
+            itemIds={[VIDEO_ITEM.id]}
+            property="width"
+            currentValue={200}
+            vector={VECTOR_CONFIG}
+          />
+        </TooltipProvider>,
+      )
+
+      fireEvent.click(screen.getByRole('button'))
+
+      expect(mocks.addKeyframes).toHaveBeenCalledWith([
+        { itemId: VIDEO_ITEM.id, property: 'width', frame: 10, value: 200 },
+      ])
+      expect(mocks.upsertVectorKeyframe).not.toHaveBeenCalled()
+    })
   })
 })

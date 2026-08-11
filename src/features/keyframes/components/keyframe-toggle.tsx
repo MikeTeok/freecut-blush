@@ -18,7 +18,14 @@ import {
   useTransitionsStore,
 } from '@/features/keyframes/deps/timeline'
 import { useThrottledFrame } from '@/features/keyframes/deps/preview-contract'
-import type { AnimatableProperty, ItemKeyframes, Keyframe } from '@/types/keyframe'
+import type {
+  AnimatableProperty,
+  ItemKeyframes,
+  Keyframe,
+  Vector2,
+  VectorAnimatableProperty,
+  VectorKeyframe,
+} from '@/types/keyframe'
 import type { TimelineItem } from '@/types/timeline'
 import type { Transition } from '@/types/transition'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
@@ -35,6 +42,19 @@ interface KeyframeToggleProps {
   getCurrentValue?: () => number
   /** Per-item values for mixed selections; falls back to currentValue when omitted */
   currentValuesByItemId?: Readonly<Record<string, number>>
+  /**
+   * Coupled vector lane config for transform proxies (width→scale.x etc.).
+   * When an item is animated through a persisted vector lane, the toggle adds
+   * and removes vector keyframes instead of invisible scalar ones.
+   */
+  vector?: {
+    /** The vector lane this toggle maps to. */
+    property: VectorAnimatableProperty
+    /** The axis this toggle represents. */
+    axis: 'x' | 'y'
+    /** Resolve the current vector value per item, lazily, when adding. */
+    getValueByItemId: (itemId: string, relativeFrame: number) => Vector2 | null
+  }
   /** Optional class name for the button */
   className?: string
   /** Disabled state */
@@ -46,7 +66,10 @@ interface KeyframeToggleTargetState {
   item: Pick<TimelineItem, 'from' | 'durationInFrames'> | undefined
   relativeFrame: number
   propertyKeyframes: ItemKeyframes['properties'][number] | undefined
+  vectorLaneKeyframes: readonly VectorKeyframe[] | undefined
   keyframeAtFrame: Keyframe | undefined
+  vectorKeyframeAtFrame: VectorKeyframe | undefined
+  usesVector: boolean
   transitionBlockedRange: ReturnType<typeof isFrameInTransitionRegion>
 }
 
@@ -67,6 +90,7 @@ function buildTargetStates(
   currentFrame: number,
   property: AnimatableProperty,
   transitions: Transition[],
+  vector: KeyframeToggleProps['vector'],
 ): KeyframeToggleTargetState[] {
   return itemIds.map((itemId, index) => {
     const from = selectedItemBounds[index * 2]
@@ -75,15 +99,32 @@ function buildTargetStates(
       from === undefined || durationInFrames === undefined ? undefined : { from, durationInFrames }
     const itemKeyframes = selectedItemKeyframes[index]
     const relativeFrame = item ? currentFrame - item.from : 0
-    const propertyKeyframes = itemKeyframes?.properties.find((entry) => entry.property === property)
+
+    const vectorLane = vector
+      ? itemKeyframes?.vectorProperties?.find((entry) => entry.property === vector.property)
+      : undefined
+    const usesVector =
+      Boolean(vector && vectorLane && vectorLane.keyframes.length > 0) &&
+      !itemKeyframes?.separatedVectorProperties?.includes(vector!.property)
+    const vectorKeyframeAtFrame = usesVector
+      ? vectorLane?.keyframes.find((keyframe) => keyframe.frame === relativeFrame)
+      : undefined
+    const propertyKeyframes = usesVector
+      ? undefined
+      : itemKeyframes?.properties.find((entry) => entry.property === property)
+    const keyframeAtFrame = usesVector
+      ? undefined
+      : propertyKeyframes?.keyframes.find((keyframe) => keyframe.frame === relativeFrame)
+
     return {
       itemId,
       item,
       relativeFrame,
       propertyKeyframes,
-      keyframeAtFrame: propertyKeyframes?.keyframes.find(
-        (keyframe) => keyframe.frame === relativeFrame,
-      ),
+      vectorLaneKeyframes: usesVector ? vectorLane?.keyframes : undefined,
+      keyframeAtFrame,
+      vectorKeyframeAtFrame,
+      usesVector,
       transitionBlockedRange: item
         ? isFrameInTransitionRegion(relativeFrame, itemId, item, transitions)
         : undefined,
@@ -97,37 +138,63 @@ function toggleTargetKeyframes(
   currentValue: number,
   getCurrentValue: (() => number) | undefined,
   currentValuesByItemId: Readonly<Record<string, number>> | undefined,
+  vector: KeyframeToggleProps['vector'],
   removeKeyframes: TimelineStoreState['removeKeyframes'],
   addKeyframes: TimelineStoreState['addKeyframes'],
+  removeVectorKeyframe: TimelineStoreState['removeVectorKeyframe'],
+  upsertVectorKeyframe: TimelineStoreState['upsertVectorKeyframe'],
 ): void {
-  const allHaveKeyframes =
-    states.length > 0 && states.every((state) => state.keyframeAtFrame !== undefined)
+  const hasKeyframeAtFrame = (state: KeyframeToggleTargetState) =>
+    state.usesVector
+      ? state.vectorKeyframeAtFrame !== undefined
+      : state.keyframeAtFrame !== undefined
+
+  const allHaveKeyframes = states.length > 0 && states.every(hasKeyframeAtFrame)
   if (allHaveKeyframes) {
-    removeKeyframes(
-      states.flatMap((state) =>
-        state.keyframeAtFrame
-          ? [{ itemId: state.itemId, property, keyframeId: state.keyframeAtFrame.id }]
-          : [],
-      ),
-    )
+    const scalarRefs: Array<{ itemId: string; property: AnimatableProperty; keyframeId: string }> =
+      []
+    for (const state of states) {
+      if (state.usesVector && state.vectorKeyframeAtFrame && vector) {
+        removeVectorKeyframe(state.itemId, vector.property, state.vectorKeyframeAtFrame.id)
+      } else if (state.keyframeAtFrame) {
+        scalarRefs.push({
+          itemId: state.itemId,
+          property,
+          keyframeId: state.keyframeAtFrame.id,
+        })
+      }
+    }
+    if (scalarRefs.length > 0) removeKeyframes(scalarRefs)
     return
   }
 
   const resolvedCurrentValue = getCurrentValue?.() ?? currentValue
-  addKeyframes(
-    states.flatMap((state) =>
-      state.keyframeAtFrame
-        ? []
-        : [
-            {
-              itemId: state.itemId,
-              property,
-              frame: state.relativeFrame,
-              value: currentValuesByItemId?.[state.itemId] ?? resolvedCurrentValue,
-            },
-          ],
-    ),
-  )
+  const scalarPayloads: Array<{
+    itemId: string
+    property: AnimatableProperty
+    frame: number
+    value: number
+  }> = []
+  for (const state of states) {
+    if (hasKeyframeAtFrame(state)) continue
+    if (state.usesVector && vector) {
+      const value = vector.getValueByItemId(state.itemId, state.relativeFrame)
+      if (!value) continue
+      upsertVectorKeyframe(state.itemId, vector.property, {
+        frame: state.relativeFrame,
+        value,
+        easing: 'linear',
+      })
+      continue
+    }
+    scalarPayloads.push({
+      itemId: state.itemId,
+      property,
+      frame: state.relativeFrame,
+      value: currentValuesByItemId?.[state.itemId] ?? resolvedCurrentValue,
+    })
+  }
+  if (scalarPayloads.length > 0) addKeyframes(scalarPayloads)
 }
 
 interface KeyframeToggleButtonProps {
@@ -301,6 +368,7 @@ export function KeyframeToggle({
   currentValue,
   getCurrentValue,
   currentValuesByItemId,
+  vector,
   className,
   disabled = false,
 }: KeyframeToggleProps) {
@@ -308,6 +376,8 @@ export function KeyframeToggle({
   const currentFrame = useThrottledFrame()
   const addKeyframes = useTimelineStore((s) => s.addKeyframes)
   const removeKeyframes = useTimelineStore((s) => s.removeKeyframes)
+  const upsertVectorKeyframe = useTimelineStore((s) => s.upsertVectorKeyframe)
+  const removeVectorKeyframe = useTimelineStore((s) => s.removeVectorKeyframe)
 
   const selectedItemKeyframes = useKeyframesStore(
     useShallow(useCallback((s) => itemIds.map((itemId) => s.keyframesByItemId[itemId]), [itemIds])),
@@ -339,8 +409,17 @@ export function KeyframeToggle({
         currentFrame,
         property,
         transitions,
+        vector,
       ),
-    [currentFrame, itemIds, property, selectedItemBounds, selectedItemKeyframes, transitions],
+    [
+      currentFrame,
+      itemIds,
+      property,
+      selectedItemBounds,
+      selectedItemKeyframes,
+      transitions,
+      vector,
+    ],
   )
 
   const transitionBlockedRange = targetStates.find(
@@ -354,9 +433,15 @@ export function KeyframeToggle({
         !item || relativeFrame < 0 || relativeFrame >= item.durationInFrames,
     )
   const hasKeyframe =
-    targetStates.length > 0 && targetStates.every((state) => state.keyframeAtFrame !== undefined)
+    targetStates.length > 0 &&
+    targetStates.every((state) =>
+      state.usesVector
+        ? state.vectorKeyframeAtFrame !== undefined
+        : state.keyframeAtFrame !== undefined,
+    )
   const hasAnyKeyframes = targetStates.some(
-    (state) => (state.propertyKeyframes?.keyframes.length ?? 0) > 0,
+    (state) =>
+      (state.vectorLaneKeyframes?.length ?? state.propertyKeyframes?.keyframes.length ?? 0) > 0,
   )
   const relativeFrame = targetStates[0]?.relativeFrame ?? 0
 
@@ -370,8 +455,11 @@ export function KeyframeToggle({
       currentValue,
       getCurrentValue,
       currentValuesByItemId,
+      vector,
       removeKeyframes,
       addKeyframes,
+      removeVectorKeyframe,
+      upsertVectorKeyframe,
     )
   }, [
     disabled,
@@ -381,9 +469,12 @@ export function KeyframeToggle({
     targetStates,
     removeKeyframes,
     addKeyframes,
+    removeVectorKeyframe,
+    upsertVectorKeyframe,
     currentValuesByItemId,
     currentValue,
     getCurrentValue,
+    vector,
   ])
 
   // Compute effective disabled state

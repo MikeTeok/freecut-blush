@@ -7,12 +7,20 @@ interface ApplyAutoKeyframedTransformChangeOptions {
   getOperation: (itemId: string) => AutoKeyframeOperation | null
   applyAutoKeyframeOperations: (operations: AutoKeyframeOperation[]) => void
   onTransformChange: (ids: string[], updates: Partial<TransformProperties>) => void
+  /**
+   * When set, items with a coupled vector lane for the edited property are
+   * committed through a vector keyframe instead of the scalar/base fallback.
+   */
+  hasVectorLane?: (itemId: string) => boolean
+  getVectorOperation?: (itemId: string) => AutoKeyframeOperation | null
 }
 
 export function applyAutoKeyframedTransformChange({
   itemIds,
   updates,
   getOperation,
+  hasVectorLane,
+  getVectorOperation,
   applyAutoKeyframeOperations,
   onTransformChange,
 }: ApplyAutoKeyframedTransformChangeOptions): void {
@@ -20,6 +28,11 @@ export function applyAutoKeyframedTransformChange({
   const fallbackItemIds: string[] = []
 
   for (const itemId of itemIds) {
+    if (hasVectorLane?.(itemId)) {
+      const operation = getVectorOperation?.(itemId) ?? null
+      if (operation) autoOps.push(operation)
+      continue
+    }
     const operation = getOperation(itemId)
     if (operation) {
       autoOps.push(operation)

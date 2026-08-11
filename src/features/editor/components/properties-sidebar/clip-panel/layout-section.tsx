@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
 import type { TimelineItem, VideoItem, CompositionItem } from '@/types/timeline'
 import type { TransformProperties, CanvasSettings } from '@/types/transform'
-import type { ItemKeyframes } from '@/types/keyframe'
+import type { ItemKeyframes, Vector2 } from '@/types/keyframe'
 import { useGizmoStore, useThrottledFrame } from '@/features/editor/deps/preview'
 import { useMediaLibraryStore } from '@/features/editor/deps/media-library'
 import {
@@ -17,6 +17,7 @@ import {
 import { resolveTransform, getSourceDimensions } from '@/features/editor/deps/composition-runtime'
 import {
   getAutoKeyframeOperation as getAutoKeyframeOp,
+  getVectorAutoKeyframeOperation as getVectorAutoKeyframeOp,
   type AutoKeyframeOperation,
   resolveAnimatedTransform,
   KeyframeToggle,
@@ -67,6 +68,8 @@ interface PositionAxisControlProps {
   canvas: CanvasSettings
   onChange: (value: number) => void
   onLiveChange: (value: number) => void
+  /** Resolve the coupled position value per item (used by the keyframe toggle). */
+  getVectorValue: (itemId: string, relativeFrame: number) => Vector2 | null
 }
 
 function resolveMixedPositionValue({
@@ -113,6 +116,7 @@ const PositionAxisControl = memo(function PositionAxisControl({
   canvas,
   onChange,
   onLiveChange,
+  getVectorValue,
 }: PositionAxisControlProps) {
   const currentFrame = useThrottledFrame()
   const canonicalValueFromItems = useItemsStore(
@@ -177,6 +181,14 @@ const PositionAxisControl = memo(function PositionAxisControl({
   currentValueRef.current = canonicalValue === 'mixed' ? 0 : canonicalValue
   const getCurrentValue = useCallback(() => currentValueRef.current, [])
   const displayedValue = liveValue ?? canonicalValue
+  const positionVector = useMemo(
+    () => ({
+      property: 'position' as const,
+      axis,
+      getValueByItemId: getVectorValue,
+    }),
+    [axis, getVectorValue],
+  )
 
   return (
     <div className="flex items-center gap-0.5">
@@ -194,6 +206,7 @@ const PositionAxisControl = memo(function PositionAxisControl({
         property={axis}
         currentValue={0}
         getCurrentValue={getCurrentValue}
+        vector={positionVector}
       />
     </div>
   )
@@ -369,6 +382,160 @@ export const LayoutSection = memo(function LayoutSection({
     [currentFrame, itemsById, keyframesByItemId],
   )
 
+  // When the item is animated through a coupled scale lane, reset must write a
+  // vector keyframe (the scalar W/H keys no longer drive the resolved size).
+  const getVectorScaleResetOperation = useCallback(
+    (
+      item: TimelineItem,
+      targetWidth: number,
+      targetHeight: number,
+    ): AutoKeyframeOperation | null => {
+      const itemKeyframes = keyframesByItemId.get(item.id) ?? undefined
+      const hasVectorScaleLane = itemKeyframes?.vectorProperties?.some(
+        (candidate) => candidate.property === 'scale' && candidate.keyframes.length > 0,
+      )
+      if (!hasVectorScaleLane) return null
+
+      const base = resolveTransform(item, canvas, getSourceDimensions(item))
+      const value = {
+        x: base.width === 0 ? 100 : (targetWidth / base.width) * 100,
+        y: base.height === 0 ? 100 : (targetHeight / base.height) * 100,
+      }
+      return getVectorAutoKeyframeOp(item, itemKeyframes, 'scale', value, currentFrame)
+    },
+    [canvas, currentFrame, keyframesByItemId],
+  )
+
+  const hasCoupledVectorLane = useCallback(
+    (itemId: string, property: 'position' | 'scale' | 'anchor'): boolean => {
+      const itemKeyframes = keyframesByItemId.get(itemId) ?? undefined
+      return (
+        itemKeyframes?.vectorProperties?.some(
+          (candidate) => candidate.property === property && candidate.keyframes.length > 0,
+        ) ?? false
+      )
+    },
+    [keyframesByItemId],
+  )
+
+  // Build a vector auto-keyframe op for an edit to one coupled lane. Scale is
+  // expressed as a percentage of the item's base size, so edits typed in
+  // resolved pixels must be converted before being pinned to the lane.
+  const getVectorEditOperation = useCallback(
+    (
+      itemId: string,
+      property: 'position' | 'scale' | 'anchor',
+      valueX: number,
+      valueY: number,
+    ): AutoKeyframeOperation | null => {
+      const item = itemsById.get(itemId)
+      if (!item) return null
+      const itemKeyframes = keyframesByItemId.get(itemId) ?? undefined
+      if (property === 'scale') {
+        const base = resolveTransform(item, canvas, getSourceDimensions(item))
+        return getVectorAutoKeyframeOp(
+          item,
+          itemKeyframes,
+          'scale',
+          {
+            x: base.width === 0 ? 100 : (valueX / base.width) * 100,
+            y: base.height === 0 ? 100 : (valueY / base.height) * 100,
+          },
+          currentFrame,
+        )
+      }
+      return getVectorAutoKeyframeOp(
+        item,
+        itemKeyframes,
+        property,
+        { x: valueX, y: valueY },
+        currentFrame,
+      )
+    },
+    [canvas, currentFrame, itemsById, keyframesByItemId],
+  )
+
+  // Lazily resolve the current coupled-vector value at click time (reads the
+  // stores directly) so the memoized keyframe toggles stay out of the frame
+  // hot path while still pinning the exact state shown by the panel.
+  const getScaleVectorValue = useCallback(
+    (itemId: string, relativeFrame: number): Vector2 | null => {
+      const item = useItemsStore.getState().itemById[itemId]
+      if (!item) return null
+      const itemKeyframes = useKeyframesStore.getState().keyframesByItemId[itemId]
+      const base = resolveTransform(item, canvas, getSourceDimensions(item))
+      const resolved = itemKeyframes
+        ? resolveAnimatedTransform(base, itemKeyframes, relativeFrame)
+        : base
+      return {
+        x: base.width === 0 ? 100 : (resolved.width / base.width) * 100,
+        y: base.height === 0 ? 100 : (resolved.height / base.height) * 100,
+      }
+    },
+    [canvas],
+  )
+
+  const getPositionVectorValue = useCallback(
+    (itemId: string, relativeFrame: number): Vector2 | null => {
+      const item = useItemsStore.getState().itemById[itemId]
+      if (!item) return null
+      const itemKeyframes = useKeyframesStore.getState().keyframesByItemId[itemId]
+      const base = resolveTransform(item, canvas, getSourceDimensions(item))
+      const resolved = itemKeyframes
+        ? resolveAnimatedTransform(base, itemKeyframes, relativeFrame)
+        : base
+      return { x: resolved.x, y: resolved.y }
+    },
+    [canvas],
+  )
+
+  const getAnchorVectorValue = useCallback(
+    (itemId: string, relativeFrame: number): Vector2 | null => {
+      const item = useItemsStore.getState().itemById[itemId]
+      if (!item) return null
+      const itemKeyframes = useKeyframesStore.getState().keyframesByItemId[itemId]
+      const base = resolveTransform(item, canvas, getSourceDimensions(item))
+      const resolved = itemKeyframes
+        ? resolveAnimatedTransform(base, itemKeyframes, relativeFrame)
+        : base
+      return { x: resolved.anchorX, y: resolved.anchorY }
+    },
+    [canvas],
+  )
+
+  const widthVector = useMemo(
+    () => ({
+      property: 'scale' as const,
+      axis: 'x' as const,
+      getValueByItemId: getScaleVectorValue,
+    }),
+    [getScaleVectorValue],
+  )
+  const heightVector = useMemo(
+    () => ({
+      property: 'scale' as const,
+      axis: 'y' as const,
+      getValueByItemId: getScaleVectorValue,
+    }),
+    [getScaleVectorValue],
+  )
+  const anchorXVector = useMemo(
+    () => ({
+      property: 'anchor' as const,
+      axis: 'x' as const,
+      getValueByItemId: getAnchorVectorValue,
+    }),
+    [getAnchorVectorValue],
+  )
+  const anchorYVector = useMemo(
+    () => ({
+      property: 'anchor' as const,
+      axis: 'y' as const,
+      getValueByItemId: getAnchorVectorValue,
+    }),
+    [getAnchorVectorValue],
+  )
+
   // Live preview for X position (during scrub)
   const handleXLiveChange = useCallback(
     (value: number) => {
@@ -387,6 +554,14 @@ export const LayoutSection = memo(function LayoutSection({
       applyAutoKeyframedTransformChange({
         itemIds,
         updates: { x: value },
+        hasVectorLane: (itemId) => hasCoupledVectorLane(itemId, 'position'),
+        getVectorOperation: (itemId) =>
+          getVectorEditOperation(
+            itemId,
+            'position',
+            value,
+            resolvedTransformsByItem.get(itemId)?.y ?? 0,
+          ),
         getOperation: (itemId) => getAutoKeyframeOperation(itemId, 'x', value),
         applyAutoKeyframeOperations,
         onTransformChange,
@@ -399,6 +574,9 @@ export const LayoutSection = memo(function LayoutSection({
       clearPreview,
       getAutoKeyframeOperation,
       applyAutoKeyframeOperations,
+      hasCoupledVectorLane,
+      getVectorEditOperation,
+      resolvedTransformsByItem,
     ],
   )
 
@@ -420,6 +598,14 @@ export const LayoutSection = memo(function LayoutSection({
       applyAutoKeyframedTransformChange({
         itemIds,
         updates: { y: value },
+        hasVectorLane: (itemId) => hasCoupledVectorLane(itemId, 'position'),
+        getVectorOperation: (itemId) =>
+          getVectorEditOperation(
+            itemId,
+            'position',
+            resolvedTransformsByItem.get(itemId)?.x ?? 0,
+            value,
+          ),
         getOperation: (itemId) => getAutoKeyframeOperation(itemId, 'y', value),
         applyAutoKeyframeOperations,
         onTransformChange,
@@ -432,6 +618,9 @@ export const LayoutSection = memo(function LayoutSection({
       clearPreview,
       getAutoKeyframeOperation,
       applyAutoKeyframeOperations,
+      hasCoupledVectorLane,
+      getVectorEditOperation,
+      resolvedTransformsByItem,
     ],
   )
 
@@ -460,6 +649,12 @@ export const LayoutSection = memo(function LayoutSection({
       const autoOps: AutoKeyframeOperation[] = []
       const fallbackUpdates = new Map<string, Partial<TransformProperties>>()
       for (const itemId of itemIds) {
+        if (hasCoupledVectorLane(itemId, 'scale')) {
+          const resolvedHeight = newHeight ?? resolvedTransformsByItem.get(itemId)?.height ?? 0
+          const operation = getVectorEditOperation(itemId, 'scale', value, resolvedHeight)
+          if (operation) autoOps.push(operation)
+          continue
+        }
         const widthOperation = getAutoKeyframeOperation(itemId, 'width', value)
         const heightOperation =
           newHeight !== null ? getAutoKeyframeOperation(itemId, 'height', newHeight) : null
@@ -493,6 +688,9 @@ export const LayoutSection = memo(function LayoutSection({
       getAutoKeyframeOperation,
       applyAutoKeyframeOperations,
       updateItemsTransformMap,
+      hasCoupledVectorLane,
+      getVectorEditOperation,
+      resolvedTransformsByItem,
     ],
   )
 
@@ -521,6 +719,12 @@ export const LayoutSection = memo(function LayoutSection({
       const autoOps: AutoKeyframeOperation[] = []
       const fallbackUpdates = new Map<string, Partial<TransformProperties>>()
       for (const itemId of itemIds) {
+        if (hasCoupledVectorLane(itemId, 'scale')) {
+          const resolvedWidth = newWidth ?? resolvedTransformsByItem.get(itemId)?.width ?? 0
+          const operation = getVectorEditOperation(itemId, 'scale', resolvedWidth, value)
+          if (operation) autoOps.push(operation)
+          continue
+        }
         const heightOperation = getAutoKeyframeOperation(itemId, 'height', value)
         const widthOperation =
           newWidth !== null ? getAutoKeyframeOperation(itemId, 'width', newWidth) : null
@@ -554,6 +758,9 @@ export const LayoutSection = memo(function LayoutSection({
       getAutoKeyframeOperation,
       applyAutoKeyframeOperations,
       updateItemsTransformMap,
+      hasCoupledVectorLane,
+      getVectorEditOperation,
+      resolvedTransformsByItem,
     ],
   )
 
@@ -608,6 +815,14 @@ export const LayoutSection = memo(function LayoutSection({
       applyAutoKeyframedTransformChange({
         itemIds: mediaTransformItemIds,
         updates: { anchorX: value },
+        hasVectorLane: (itemId) => hasCoupledVectorLane(itemId, 'anchor'),
+        getVectorOperation: (itemId) =>
+          getVectorEditOperation(
+            itemId,
+            'anchor',
+            value,
+            resolvedTransformsByItem.get(itemId)?.anchorY ?? 0,
+          ),
         getOperation: (itemId) => getAutoKeyframeOperation(itemId, 'anchorX', value),
         applyAutoKeyframeOperations,
         onTransformChange,
@@ -615,11 +830,14 @@ export const LayoutSection = memo(function LayoutSection({
       queueMicrotask(() => clearPreview())
     },
     [
+      mediaTransformItemIds,
       applyAutoKeyframeOperations,
       clearPreview,
       getAutoKeyframeOperation,
-      mediaTransformItemIds,
       onTransformChange,
+      hasCoupledVectorLane,
+      getVectorEditOperation,
+      resolvedTransformsByItem,
     ],
   )
 
@@ -641,6 +859,14 @@ export const LayoutSection = memo(function LayoutSection({
       applyAutoKeyframedTransformChange({
         itemIds: mediaTransformItemIds,
         updates: { anchorY: value },
+        hasVectorLane: (itemId) => hasCoupledVectorLane(itemId, 'anchor'),
+        getVectorOperation: (itemId) =>
+          getVectorEditOperation(
+            itemId,
+            'anchor',
+            resolvedTransformsByItem.get(itemId)?.anchorX ?? 0,
+            value,
+          ),
         getOperation: (itemId) => getAutoKeyframeOperation(itemId, 'anchorY', value),
         applyAutoKeyframeOperations,
         onTransformChange,
@@ -648,11 +874,14 @@ export const LayoutSection = memo(function LayoutSection({
       queueMicrotask(() => clearPreview())
     },
     [
+      mediaTransformItemIds,
       applyAutoKeyframeOperations,
       clearPreview,
       getAutoKeyframeOperation,
-      mediaTransformItemIds,
       onTransformChange,
+      hasCoupledVectorLane,
+      getVectorEditOperation,
+      resolvedTransformsByItem,
     ],
   )
 
@@ -673,56 +902,51 @@ export const LayoutSection = memo(function LayoutSection({
       if (!resolved) continue
 
       // For shapes: reset to 1:1 aspect ratio
+      let targetWidth: number
+      let targetHeight: number
       if (item.type === 'shape' || item.type === 'text') {
         const size = Math.min(resolved.width, resolved.height)
-        const updates: Partial<TransformProperties> = {}
+        targetWidth = size
+        targetHeight = size
+      } else {
+        // First try to get source dimensions from the item itself
+        let source = getSourceDimensions(item)
 
-        if (Math.abs(resolved.width - size) > tolerance) {
-          const op = getAutoKeyframeOperation(item.id, 'width', size)
-          if (op) autoOps.push(op)
-          else updates.width = size
-        }
-        if (Math.abs(resolved.height - size) > tolerance) {
-          const op = getAutoKeyframeOperation(item.id, 'height', size)
-          if (op) autoOps.push(op)
-          else updates.height = size
+        // Fallback: look up dimensions from media library if item has mediaId
+        if (!source && item.mediaId) {
+          const media = mediaById[item.mediaId]
+          if (media && media.width && media.height) {
+            source = { width: media.width, height: media.height }
+          }
         }
 
-        if (Object.keys(updates).length > 0) {
-          fallbackUpdates.set(item.id, updates)
-        }
+        if (!source) continue
+
+        // Compute fit-to-canvas dimensions (the size the item had when first dragged in)
+        const fitScale = Math.min(canvas.width / source.width, canvas.height / source.height)
+        targetWidth = Math.round(source.width * fitScale)
+        targetHeight = Math.round(source.height * fitScale)
+      }
+
+      // Item is animated through a coupled scale lane: write a vector keyframe
+      // so the resolved size actually reaches the target.
+      const vectorOp = getVectorScaleResetOperation(item, targetWidth, targetHeight)
+      if (vectorOp) {
+        autoOps.push(vectorOp)
         continue
       }
 
-      // First try to get source dimensions from the item itself
-      let source = getSourceDimensions(item)
-
-      // Fallback: look up dimensions from media library if item has mediaId
-      if (!source && item.mediaId) {
-        const media = mediaById[item.mediaId]
-        if (media && media.width && media.height) {
-          source = { width: media.width, height: media.height }
-        }
-      }
-
-      if (!source) continue
-
-      // Compute fit-to-canvas dimensions (the size the item had when first dragged in)
-      const fitScale = Math.min(canvas.width / source.width, canvas.height / source.height)
-      const fitWidth = Math.round(source.width * fitScale)
-      const fitHeight = Math.round(source.height * fitScale)
-
       // Only update if dimensions actually changed
       const updates: Partial<TransformProperties> = {}
-      if (Math.abs(resolved.width - fitWidth) > tolerance) {
-        const op = getAutoKeyframeOperation(item.id, 'width', fitWidth)
+      if (Math.abs(resolved.width - targetWidth) > tolerance) {
+        const op = getAutoKeyframeOperation(item.id, 'width', targetWidth)
         if (op) autoOps.push(op)
-        else updates.width = fitWidth
+        else updates.width = targetWidth
       }
-      if (Math.abs(resolved.height - fitHeight) > tolerance) {
-        const op = getAutoKeyframeOperation(item.id, 'height', fitHeight)
+      if (Math.abs(resolved.height - targetHeight) > tolerance) {
+        const op = getAutoKeyframeOperation(item.id, 'height', targetHeight)
         if (op) autoOps.push(op)
-        else updates.height = fitHeight
+        else updates.height = targetHeight
       }
 
       if (Object.keys(updates).length > 0) {
@@ -740,6 +964,7 @@ export const LayoutSection = memo(function LayoutSection({
   }, [
     items,
     getAutoKeyframeOperation,
+    getVectorScaleResetOperation,
     applyAutoKeyframeOperations,
     updateItemsTransformMap,
     mediaById,
@@ -757,6 +982,23 @@ export const LayoutSection = memo(function LayoutSection({
     for (const item of items) {
       const resolved = resolvedTransformsByItem.get(item.id)
       if (!resolved) continue
+
+      // Item animated through a coupled position lane: write a vector keyframe.
+      const itemKeyframes = keyframesByItemId.get(item.id) ?? undefined
+      const hasVectorPositionLane = itemKeyframes?.vectorProperties?.some(
+        (candidate) => candidate.property === 'position' && candidate.keyframes.length > 0,
+      )
+      if (hasVectorPositionLane) {
+        const op = getVectorAutoKeyframeOp(
+          item,
+          itemKeyframes,
+          'position',
+          { x: 0, y: 0 },
+          currentFrame,
+        )
+        if (op) autoOps.push(op)
+        continue
+      }
 
       const updates: Partial<TransformProperties> = {}
       if (Math.abs(resolved.x) > tolerance) {
@@ -788,6 +1030,8 @@ export const LayoutSection = memo(function LayoutSection({
     applyAutoKeyframeOperations,
     updateItemsTransformMap,
     resolvedTransformsByItem,
+    currentFrame,
+    keyframesByItemId,
     clearTransformUiState,
   ])
 
@@ -865,6 +1109,7 @@ export const LayoutSection = memo(function LayoutSection({
               canvas={canvas}
               onChange={handleXChange}
               onLiveChange={handleXLiveChange}
+              getVectorValue={getPositionVectorValue}
             />
             <PositionAxisControl
               axis="y"
@@ -872,6 +1117,7 @@ export const LayoutSection = memo(function LayoutSection({
               canvas={canvas}
               onChange={handleYChange}
               onLiveChange={handleYLiveChange}
+              getVectorValue={getPositionVectorValue}
             />
           </div>
           <Button
@@ -904,6 +1150,7 @@ export const LayoutSection = memo(function LayoutSection({
             itemIds={itemIds}
             property="width"
             currentValue={width === 'mixed' ? 100 : width}
+            vector={widthVector}
           />
           <Button
             variant="ghost"
@@ -937,6 +1184,7 @@ export const LayoutSection = memo(function LayoutSection({
             itemIds={itemIds}
             property="height"
             currentValue={height === 'mixed' ? 100 : height}
+            vector={heightVector}
           />
           <Button
             variant="ghost"
@@ -997,6 +1245,7 @@ export const LayoutSection = memo(function LayoutSection({
                 itemIds={mediaTransformItemIds}
                 property="anchorX"
                 currentValue={mediaAnchorX === 'mixed' ? 0 : mediaAnchorX}
+                vector={anchorXVector}
               />
             </div>
             <div className="flex items-center gap-0.5 flex-1 min-w-0">
@@ -1013,6 +1262,7 @@ export const LayoutSection = memo(function LayoutSection({
                 itemIds={mediaTransformItemIds}
                 property="anchorY"
                 currentValue={mediaAnchorY === 'mixed' ? 0 : mediaAnchorY}
+                vector={anchorYVector}
               />
             </div>
             <Button

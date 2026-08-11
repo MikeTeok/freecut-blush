@@ -46,4 +46,41 @@ describe('applyAutoKeyframedTransformChange', () => {
     expect(applyAutoKeyframeOperations).toHaveBeenCalledTimes(1)
     expect(onTransformChange).not.toHaveBeenCalled()
   })
+
+  it('routes items with a vector lane through the vector operation', () => {
+    const applyAutoKeyframeOperations = vi.fn()
+    const onTransformChange = vi.fn()
+    const vectorOperation = createOperation('animated')
+
+    applyAutoKeyframedTransformChange({
+      itemIds: ['animated', 'plain'],
+      updates: { width: 42 },
+      hasVectorLane: (itemId) => itemId === 'animated',
+      getVectorOperation: (itemId) => (itemId === 'animated' ? vectorOperation : null),
+      getOperation: (itemId) => (itemId === 'animated' ? createOperation(itemId) : null),
+      applyAutoKeyframeOperations,
+      onTransformChange,
+    })
+
+    expect(applyAutoKeyframeOperations).toHaveBeenCalledWith([vectorOperation])
+    expect(onTransformChange).toHaveBeenCalledWith(['plain'], { width: 42 })
+  })
+
+  it('does not fall back to the base transform when a vector lane exists but the op is blocked', () => {
+    const applyAutoKeyframeOperations = vi.fn()
+    const onTransformChange = vi.fn()
+
+    applyAutoKeyframedTransformChange({
+      itemIds: ['blocked'],
+      updates: { width: 42 },
+      hasVectorLane: () => true,
+      getVectorOperation: () => null,
+      getOperation: () => createOperation('blocked'),
+      applyAutoKeyframeOperations,
+      onTransformChange,
+    })
+
+    expect(applyAutoKeyframeOperations).not.toHaveBeenCalled()
+    expect(onTransformChange).not.toHaveBeenCalled()
+  })
 })
