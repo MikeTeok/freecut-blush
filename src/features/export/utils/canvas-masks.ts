@@ -17,11 +17,7 @@ import {
   rotatePath,
   resolveActiveShapeMasksAtFrame,
 } from '@/features/export/deps/composition-runtime'
-import {
-  getLogicalCanvasSize,
-  scaleResolvedTransformForCanvas,
-  scaleShapeItemForCanvas,
-} from './canvas-render-scale'
+import { getLogicalCanvasSize, scaleShapeItemForCanvas } from './canvas-render-scale'
 
 interface MaskEntry {
   mask: ShapeItem
