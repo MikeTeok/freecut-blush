@@ -146,7 +146,10 @@ fn fragmentMain(input: VertexOutput) -> @location(0) vec4f {
   let fillAlpha = smoothstep(glyphEdgeMin, glyphEdgeMax, distanceAlpha) * input.color.a;
   let strokeBand = clamp(input.strokeWidth / 16.0, 0.0, 0.49);
   let strokeAlpha = smoothstep(0.5 - strokeBand - 0.04, 0.5 - strokeBand + 0.04, distanceAlpha) * input.strokeColor.a;
-  let glyphAlpha = fillAlpha + strokeAlpha * (1.0 - fillAlpha);
+  // Outside-only stroke: mask so the outline only contributes where the fill
+  // is NOT present, preventing it from bleeding through semi-transparent text.
+  let outsideStrokeAlpha = strokeAlpha * (1.0 - fillAlpha);
+  let glyphAlpha = fillAlpha + outsideStrokeAlpha;
   let glyphRgb = mix(input.strokeColor.rgb, input.color.rgb, select(0.0, fillAlpha / max(glyphAlpha, 0.0001), glyphAlpha > 0.0));
   let alpha = mix(glyphAlpha, solidAlpha * input.color.a, input.solidMode);
   let rgb = mix(glyphRgb, input.color.rgb, input.solidMode);

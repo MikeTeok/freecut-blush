@@ -33,7 +33,7 @@ const BUILT_IN_PROPERTY_VALUE_RANGES: Record<BuiltInAnimatableProperty, Property
   cropSoftness: { property: 'cropSoftness', min: -2000, max: 2000, unit: 'px', decimals: 0 },
   volume: { property: 'volume', min: -60, max: 20, unit: 'dB', decimals: 1 },
   textStyleScale: { property: 'textStyleScale', min: 0.5, max: 6, unit: 'x', decimals: 2 },
-  fontSize: { property: 'fontSize', min: 8, max: 500, unit: 'px', decimals: 0 },
+  fontSize: { property: 'fontSize', min: 8, max: 2000, unit: 'px', decimals: 0 },
   lineHeight: { property: 'lineHeight', min: 0.5, max: 3, unit: 'x', decimals: 2 },
   textPadding: { property: 'textPadding', min: 0, max: 160, unit: 'px', decimals: 0 },
   backgroundRadius: { property: 'backgroundRadius', min: 0, max: 200, unit: 'px', decimals: 0 },
@@ -78,13 +78,10 @@ function inferUnit(label: string): string {
   return ''
 }
 
-function getPathPropertyValueRange(
-  property: AnimatableProperty,
-): PropertyValueRange | null {
+function getPathPropertyValueRange(property: AnimatableProperty): PropertyValueRange | null {
   const pathVertex = parsePathVertexAnimatableProperty(property)
   if (!pathVertex) return null
-  const isPosition =
-    pathVertex.component === 'positionX' || pathVertex.component === 'positionY'
+  const isPosition = pathVertex.component === 'positionX' || pathVertex.component === 'positionY'
   return {
     property,
     min: isPosition ? 0 : -2,
@@ -94,9 +91,7 @@ function getPathPropertyValueRange(
   }
 }
 
-function getEffectPropertyValueRange(
-  property: AnimatableProperty,
-): PropertyValueRange | null {
+function getEffectPropertyValueRange(property: AnimatableProperty): PropertyValueRange | null {
   const parsed = parseEffectAnimatableProperty(property)
   if (!parsed) return null
 

@@ -93,6 +93,18 @@ function pruneTextRasterCache(cache: Map<string, TextRasterCacheEntry>): void {
 }
 
 /**
+ * Allocate the scratch canvas used to render an outside-only stroke, or null
+ * when the item has no stroke. Shared by the whole-line and glyph paths.
+ */
+function createStrokeBuffer(
+  ctx: OffscreenCanvasRenderingContext2D,
+  item: TextItem,
+): OffscreenCanvas | null {
+  if (!item.stroke || item.stroke.width <= 0) return null
+  return new OffscreenCanvas(ctx.canvas.width, ctx.canvas.height)
+}
+
+/**
  * Paint the laid-out text block (background → shadow → lines) into `ctx` with
  * the item box's top-left at (originX, originY). Shared by the direct draw and
  * the offscreen rasterization paths so both produce identical pixels.
@@ -134,14 +146,28 @@ function paintTextBlock(
   ctx.textBaseline = 'alphabetic'
   ctx.textAlign = 'left'
   const strokeWidth = item.stroke?.width ?? 0
+  const strokeBuffer = createStrokeBuffer(ctx, item)
 
   for (const line of layout.lines) {
     if (line.text.length === 0) continue
-    paintLaidOutLine(ctx, item, line, originX + line.startX, originY + line.baselineY, strokeWidth)
+    paintLaidOutLine(
+      ctx,
+      item,
+      line,
+      originX + line.startX,
+      originY + line.baselineY,
+      strokeWidth,
+      strokeBuffer,
+    )
   }
 }
 
-/** Paint one laid-out line: stroke pass, then fill (per-run for inline flow). */
+/**
+ * Paint one laid-out line: outside-only stroke pass, then fill (per-run for
+ * inline flow). The stroke is rendered to a temporary canvas and the interior
+ * is cut out with `destination-out` so it never bleeds through semi-transparent
+ * fill.
+ */
 function paintLaidOutLine(
   ctx: OffscreenCanvasRenderingContext2D,
   item: TextItem,
@@ -149,15 +175,23 @@ function paintLaidOutLine(
   x: number,
   y: number,
   strokeWidth: number,
+  strokeBuffer: OffscreenCanvas | null,
 ): void {
   ctx.font = line.cssFont
   applyCanvasLetterSpacing(ctx, line.letterSpacing)
 
-  if (item.stroke && strokeWidth > 0) {
-    ctx.strokeStyle = item.stroke.color
-    ctx.lineWidth = strokeWidth * 2
-    ctx.lineJoin = 'round'
-    ctx.strokeText(line.text, x, y)
+  if (item.stroke && strokeWidth > 0 && strokeBuffer) {
+    drawOutsideOnlyStroke(
+      ctx,
+      line.text,
+      x,
+      y,
+      item.stroke.color,
+      strokeWidth * 2,
+      line.cssFont,
+      line.letterSpacing,
+      strokeBuffer,
+    )
   }
 
   if (!line.runs || line.runs.length === 0) {
@@ -179,6 +213,68 @@ function paintLaidOutLine(
 }
 
 /**
+ * Draw text stroke so it only appears OUTSIDE the glyph fill. A temporary
+ * buffer receives the centered stroke, then `destination-out` compositing
+ * removes the interior before the result is blitted onto the main canvas.
+ */
+function drawOutsideOnlyStroke(
+  ctx: OffscreenCanvasRenderingContext2D,
+  text: string,
+  x: number,
+  y: number,
+  strokeColor: string,
+  lineWidth: number,
+  font: string,
+  letterSpacing: number,
+  buffer: OffscreenCanvas,
+): void {
+  const bufCtx = buffer.getContext('2d')
+  if (!bufCtx) return
+  bufCtx.clearRect(0, 0, buffer.width, buffer.height)
+  bufCtx.font = font
+  applyCanvasLetterSpacing(bufCtx, letterSpacing)
+  bufCtx.strokeStyle = strokeColor
+  bufCtx.lineWidth = lineWidth
+  bufCtx.lineJoin = 'round'
+  bufCtx.strokeText(text, x, y)
+  bufCtx.globalCompositeOperation = 'destination-out'
+  bufCtx.fillStyle = '#000'
+  bufCtx.fillText(text, x, y)
+  bufCtx.globalCompositeOperation = 'source-over'
+  ctx.drawImage(buffer, 0, 0)
+}
+
+/**
+ * Draw an outside-only stroke for a single glyph. The caller (`drawGlyphWithMotion`)
+ * has already applied motion transforms to `ctx`, so we draw the stroke on a
+ * plain buffer and composite it back — the parent transform handles positioning.
+ */
+function drawGlyphOutsideOnlyStroke(
+  ctx: OffscreenCanvasRenderingContext2D,
+  char: string,
+  x: number,
+  baselineY: number,
+  font: string,
+  strokeColor: string,
+  lineWidth: number,
+  buffer: OffscreenCanvas,
+): void {
+  const bufCtx = buffer.getContext('2d')
+  if (!bufCtx) return
+  bufCtx.clearRect(0, 0, buffer.width, buffer.height)
+  bufCtx.font = font
+  bufCtx.strokeStyle = strokeColor
+  bufCtx.lineWidth = lineWidth
+  bufCtx.lineJoin = 'round'
+  bufCtx.strokeText(char, x, baselineY)
+  bufCtx.globalCompositeOperation = 'destination-out'
+  bufCtx.fillStyle = '#000'
+  bufCtx.fillText(char, x, baselineY)
+  bufCtx.globalCompositeOperation = 'source-over'
+  ctx.drawImage(buffer, 0, 0)
+}
+
+/**
  * Draw one glyph with its motion state applied via Canvas2D transforms about the
  * glyph centre (scale + rotation), plus the dx/dy offset, alpha multiply and
  * `soften` edge blur — the CPU-2D analogue of the GPU pipeline's per-quad vertex
@@ -196,6 +292,7 @@ function drawGlyphWithMotion(
   strokeColor: string | undefined,
   strokeWidth: number,
   motion: GlyphMotionState | null,
+  strokeBuffer: OffscreenCanvas,
 ): void {
   ctx.save()
   if (motion) {
@@ -213,10 +310,16 @@ function drawGlyphWithMotion(
   ctx.font = cssFont
   ctx.fillStyle = color
   if (strokeColor && strokeWidth > 0) {
-    ctx.strokeStyle = strokeColor
-    ctx.lineWidth = strokeWidth * 2
-    ctx.lineJoin = 'round'
-    ctx.strokeText(char, x, baselineY)
+    drawGlyphOutsideOnlyStroke(
+      ctx,
+      char,
+      x,
+      baselineY,
+      cssFont,
+      strokeColor,
+      strokeWidth * 2,
+      strokeBuffer,
+    )
   }
   ctx.fillText(char, x, baselineY)
   ctx.restore()
@@ -298,6 +401,10 @@ function paintTextBlockWithMotion(
   ctx.textAlign = 'left'
   const strokeWidth = item.stroke?.width ?? 0
   const strokeColor = item.stroke?.color
+  const hasStroke = !!strokeColor && strokeWidth > 0
+  const strokeBuffer = hasStroke
+    ? new OffscreenCanvas(ctx.canvas.width, ctx.canvas.height)
+    : (null as unknown as OffscreenCanvas)
 
   for (const [lineIndex, line] of layout.lines.entries()) {
     if (line.text.length === 0) continue
@@ -329,6 +436,7 @@ function paintTextBlockWithMotion(
             strokeColor,
             strokeWidth,
             glyphMotion,
+            strokeBuffer,
           )
         }
       }

@@ -1296,7 +1296,7 @@ function TextSectionComposer({ items, canvas, slots }: TextSectionComposerProps)
                               onChange={(value) => handleSpanFontSizeChange(index, value)}
                               onLiveChange={(value) => handleSpanFontSizeLiveChange(index, value)}
                               min={8}
-                              max={500}
+                              max={2000}
                               step={1}
                               unit="px"
                               className="min-w-0"
@@ -1441,7 +1441,7 @@ function TextSectionComposer({ items, canvas, slots }: TextSectionComposerProps)
                   onChange={handleFontSizeChange}
                   onLiveChange={handleFontSizeLiveChange}
                   min={8}
-                  max={500}
+                  max={2000}
                   step={1}
                   unit="px"
                   className="flex-1 min-w-0"
