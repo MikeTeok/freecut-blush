@@ -58,6 +58,9 @@
         },
         {
           "title": "Split at playhead now affects only the selected clip (with its linked audio), or everything when nothing is selected"
+        },
+        {
+          "title": "Loop animations — float, shake, sway, pulse, spin — apply directly from any clip's Animation tab"
         }
       ]
     }

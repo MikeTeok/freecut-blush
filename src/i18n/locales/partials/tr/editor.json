@@ -186,6 +186,8 @@
       "quickHint": "Klibe hazır bir animasyon ekleyin. Zamanlama şeridinde düzenlenebilir kalır.",
       "appliedHint": "Şu anda bu klipte hareket eden her şey.",
       "textHint": "Karakterleri, sözcükleri, satırları veya tüm metin klibini canlandırın.",
+      "loopTitle": "Loop animations",
+      "loopHint": "Looping motion that plays continuously — floating, shaking, swaying, pulsing, or spinning. Click to apply; click the chip or use Applied to tune and remove.",
       "motionClipTitle": "Motion Klibi",
       "motionClipCreateHint": "Gelişmiş animasyon için bu klibi katmanlı bir kompozisyona dönüştürün.",
       "motionClipOpenHint": "Bu klip katmanlı bir Motion kompozisyonudur.",

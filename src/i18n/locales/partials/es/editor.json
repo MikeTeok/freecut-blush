@@ -186,6 +186,8 @@
       "quickHint": "Añade una animación preparada al clip. Podrás editarla en la línea de tiempo.",
       "appliedHint": "Todo lo que se mueve actualmente en este clip.",
       "textHint": "Anima caracteres, palabras, líneas o todo el clip de texto.",
+      "loopTitle": "Loop animations",
+      "loopHint": "Looping motion that plays continuously — floating, shaking, swaying, pulsing, or spinning. Click to apply; click the chip or use Applied to tune and remove.",
       "motionClipTitle": "Clip de Motion",
       "motionClipCreateHint": "Convierte este clip en una composición por capas para animación avanzada.",
       "motionClipOpenHint": "Este clip es una composición de Motion por capas.",

@@ -1415,6 +1415,36 @@ export const AnimationPresetLibrary = memo(function AnimationPresetLibrary({
             </div>
           </section>
 
+          <Separator />
+
+          {/* Loop animations — the same live procedural modulators as the Motion
+              library (float, shake, sway, pulse, spin), surfaced here so any
+              non-text clip gets one-click looping motion like text's Loop row. */}
+          <section className="flex flex-col gap-2">
+            <div>
+              <h3 className="text-xs font-medium">{t('editor.editAnimation.loopTitle')}</h3>
+              <p className="mt-0.5 text-[10px] leading-snug text-muted-foreground">
+                {t('editor.editAnimation.loopHint')}
+              </p>
+            </div>
+            <div className="grid grid-cols-3 gap-1.5">
+              {MOTION_MODULATORS.map((modulator) => (
+                <ContinuousMotionRow
+                  key={modulator.id}
+                  modulator={modulator}
+                  active={activeModulatorIds.has(modulator.id)}
+                  reason={modulatorReason(modulator)}
+                  settings={modulatorSettingsByType.get(modulator.id) ?? null}
+                  onApply={() => handleApplyModulator(modulator)}
+                  onRemove={() => handleRemoveModulator(modulator)}
+                  onLiveEdit={(settings) => handleModulatorLiveEdit(modulator.id, settings)}
+                  onCommitEdit={(settings) => handleModulatorCommitEdit(modulator.id, settings)}
+                  t={t}
+                />
+              ))}
+            </div>
+          </section>
+
           {hasAnyAnimation ? (
             <>
               <Separator />
