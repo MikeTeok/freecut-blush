@@ -351,10 +351,17 @@ export function useEditingShortcuts(callbacks: TimelineShortcutCallbacks) {
     event.preventDefault()
     const { previewFrame, currentFrame } = usePlaybackStore.getState()
     const splitFrame = previewFrame ?? currentFrame
-    splitAllItemsAtFrame(splitFrame)
+    // Smart split: with clip(s) selected, split only those at the playhead
+    // (each with its linked group). With no selection, split everything.
+    const { selectedItemIds } = useSelectionStore.getState()
+    splitAllItemsAtFrame(
+      splitFrame,
+      selectedItemIds.length > 0 ? new Set(selectedItemIds) : undefined,
+    )
   }, [])
 
-  // Editing: Alt+C - Split all items at gray playhead (or main playhead)
+  // Editing: Alt+C - Split at gray playhead (or main playhead): selected clips
+  // only when a clip is selected, otherwise every clip crossing the playhead.
   useHotkeys(
     hotkeys.SPLIT_AT_PLAYHEAD_ALT,
     splitAtPlayhead,

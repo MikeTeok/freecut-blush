@@ -312,4 +312,127 @@ describe('useEditingShortcuts delete ownership', () => {
 
     expect(useTimelineStore.getState().items).toEqual([clip1, clip2])
   })
+
+  it('splits only the selected clip at the playhead, leaving unselected clips whole', () => {
+    const selectedClip = { ...ITEM, id: 'clip-1', from: 20, durationInFrames: 40 }
+    const crossingUnselected = {
+      ...ITEM,
+      id: 'clip-2',
+      trackId: 'track-2',
+      from: 40,
+      durationInFrames: 30,
+    }
+
+    useTimelineStore.setState({
+      tracks: [TRACK, TRACK_2],
+      items: [selectedClip, crossingUnselected],
+    })
+    usePlaybackStore.setState({
+      currentFrame: 50,
+      previewFrame: null,
+      previewItemId: null,
+    })
+    useSelectionStore.setState({
+      selectedItemIds: ['clip-1'],
+      selectionType: 'item',
+    })
+
+    render(<ShortcutHarness />)
+
+    const [, splitCallback] = getHotkeyRegistration(HOTKEYS.SPLIT_AT_PLAYHEAD_ALT)
+    const splitEvent = createHotkeyEvent()
+
+    act(() => {
+      splitCallback(splitEvent)
+    })
+
+    const items = useTimelineStore
+      .getState()
+      .items.toSorted((left, right) => left.from - right.from)
+    expect(items).toHaveLength(3)
+    expect(useTimelineCommandStore.getState().undoStack).toHaveLength(1)
+    // Selected clip splits at the playhead...
+    expect(items[0]).toMatchObject({ id: 'clip-1', from: 20, durationInFrames: 30 })
+    expect(items[2]).toMatchObject({ from: 50, durationInFrames: 10, trackId: 'track-1' })
+    // ...while the unselected clip that also crosses the playhead stays whole.
+    expect(items[1]).toMatchObject({ id: 'clip-2', from: 40, durationInFrames: 30 })
+    expect(splitEvent.preventDefault).toHaveBeenCalled()
+  })
+
+  it('does nothing when the playhead is outside the selected clip', () => {
+    const selectedClip = { ...ITEM, id: 'clip-1', from: 20, durationInFrames: 40 }
+    const otherClip = { ...ITEM, id: 'clip-2', trackId: 'track-2', from: 40, durationInFrames: 30 }
+
+    useTimelineStore.setState({ tracks: [TRACK, TRACK_2], items: [selectedClip, otherClip] })
+    usePlaybackStore.setState({
+      currentFrame: 10,
+      previewFrame: null,
+      previewItemId: null,
+    })
+    useSelectionStore.setState({
+      selectedItemIds: ['clip-1'],
+      selectionType: 'item',
+    })
+
+    render(<ShortcutHarness />)
+
+    const [, splitCallback] = getHotkeyRegistration(HOTKEYS.SPLIT_AT_PLAYHEAD_ALT)
+    const splitEvent = createHotkeyEvent()
+
+    act(() => {
+      splitCallback(splitEvent)
+    })
+
+    expect(useTimelineStore.getState().items).toHaveLength(2)
+    expect(useTimelineCommandStore.getState().undoStack).toHaveLength(0)
+    expect(splitEvent.preventDefault).toHaveBeenCalled()
+  })
+
+  it('splits every selected clip that crosses the playhead in one undo step', () => {
+    const clip1 = { ...ITEM, id: 'clip-1', from: 20, durationInFrames: 40 }
+    const clip2 = { ...ITEM, id: 'clip-2', trackId: 'track-2', from: 40, durationInFrames: 30 }
+    const notCrossing = {
+      ...ITEM,
+      id: 'clip-3',
+      trackId: 'track-1',
+      from: 60,
+      durationInFrames: 30,
+    }
+
+    useTimelineStore.setState({
+      tracks: [TRACK, TRACK_2],
+      items: [clip1, clip2, notCrossing],
+    })
+    usePlaybackStore.setState({
+      currentFrame: 50,
+      previewFrame: null,
+      previewItemId: null,
+    })
+    useSelectionStore.setState({
+      selectedItemIds: ['clip-1', 'clip-2'],
+      selectionType: 'item',
+    })
+
+    render(<ShortcutHarness />)
+
+    const [, splitCallback] = getHotkeyRegistration(HOTKEYS.SPLIT_AT_PLAYHEAD_ALT)
+    const splitEvent = createHotkeyEvent()
+
+    act(() => {
+      splitCallback(splitEvent)
+    })
+
+    const items = useTimelineStore
+      .getState()
+      .items.toSorted((left, right) => left.from - right.from)
+    expect(items).toHaveLength(5)
+    expect(useTimelineCommandStore.getState().undoStack).toHaveLength(1)
+    // Both selected clips split at 50...
+    expect(items[0]).toMatchObject({ id: 'clip-1', from: 20, durationInFrames: 30 })
+    expect(items[1]).toMatchObject({ id: 'clip-2', from: 40, durationInFrames: 10 })
+    expect(items[2]).toMatchObject({ from: 50, durationInFrames: 10 })
+    expect(items[3]).toMatchObject({ from: 50, durationInFrames: 20 })
+    // ...and the selected-only clip past the playhead stays whole.
+    expect(items[4]).toMatchObject({ id: 'clip-3', from: 60, durationInFrames: 30 })
+  })
 })

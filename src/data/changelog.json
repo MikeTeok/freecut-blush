@@ -55,6 +55,9 @@
         },
         {
           "title": "The Motion dopesheet stays responsive with large layer stacks"
+        },
+        {
+          "title": "Split at playhead now affects only the selected clip (with its linked audio), or everything when nothing is selected"
         }
       ]
     }

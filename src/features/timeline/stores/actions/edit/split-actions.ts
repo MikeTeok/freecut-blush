@@ -67,10 +67,21 @@ export function splitItem(
 /**
  * Split every item crossing a timeline frame in a single undo operation.
  * Used by playhead-based "split across all tracks" shortcuts.
+ *
+ * When `restrictToItemIds` is given, only those items are split — each with its
+ * linked group (respecting the linked-selection toggle), matching razor and
+ * single-clip split — and everything else is left untouched even if it crosses
+ * the frame. With no restriction, every crossing item splits.
  */
-export function splitAllItemsAtFrame(splitFrame: number): number {
+export function splitAllItemsAtFrame(
+  splitFrame: number,
+  restrictToItemIds?: ReadonlySet<string>,
+): number {
   const items = useItemsStore.getState().items
-  const overlappingItemIds = items
+  const candidateItems = restrictToItemIds
+    ? items.filter((item) => restrictToItemIds.has(item.id))
+    : items
+  const overlappingItemIds = candidateItems
     .filter((item) => splitFrame > item.from && splitFrame < item.from + item.durationInFrames)
     .map((item) => item.id)
   const anchorIds = getUniqueLinkedItemAnchorIds(items, overlappingItemIds)
